@@ -22,13 +22,13 @@ Instead of relying on external APIs during generation, the bot stores the entire
 Before rendering, the `ContentVerifier` strictly checks the AI's output against the local database to ensure the Arabic text perfectly matches the canonical Uthmanic script. It prevents the AI from "hallucinating" fake verses.
 
 ### 4. Rendering Layer (`moviepy` & `ffmpeg`)
-- **Background Manager**: Downloads stunning, high-quality nature videos from Pexels (e.g., "Sunrise Mountains"). If Pexels blocks the connection, it gracefully falls back to generating a custom animated background.
+- **Background Manager**: Downloads stunning, high-quality nature videos from Pixabay (e.g., "Sunrise Mountains"). If Pixabay blocks the connection, it gracefully falls back to generating a custom animated background.
 - **Video Assembly**: Stitches together the local MP3 clips, layers them over the nature background, and burns highly-aesthetic synchronized Arabic and English subtitles directly onto the video.
 
 ### 5. Publishing Layer (Instagram Graph API)
 - Uploads the massive 15MB generated Reel to a temporary Cloudinary CDN.
 - Triggers the Facebook Graph API to publish the Reel to the connected Instagram Business account.
-- **Self-Cleaning**: Immediately deletes the generated `.mp4` and the raw Pexels video from the local hard drive to ensure the server never runs out of space.
+- **Self-Cleaning**: Immediately deletes the generated `.mp4` and the raw Pixabay video from the local hard drive to ensure the server never runs out of space.
 
 ### 6. Automation Layer (Azure VM)
 A master shell script (`run_pipeline.sh`) is executed by a Linux `cron` timer every 55 minutes. It logs all activity, executes the generator, checks for success, triggers the publisher, and cleans up.

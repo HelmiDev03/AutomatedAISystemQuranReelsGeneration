@@ -65,8 +65,9 @@ async def publish_now(
     if not settings.instagram_access_token:
         raise HTTPException(status_code=400, detail="Instagram not configured")
 
-    publisher = InstagramPublisher(settings)
-    caption_text = f"{post.caption}\n\n{post.hashtags}" if post.hashtags else (post.caption or "")
+    caption_text = post.caption or ""
+    if post.hashtags and "#" not in caption_text:
+        caption_text = f"{caption_text}\n\n" + " ".join(f"#{tag.lstrip('#')}" for tag in post.hashtags.split())
 
     try:
         ig_media_id = await publisher.publish_image(

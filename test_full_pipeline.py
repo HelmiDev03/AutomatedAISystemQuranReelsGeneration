@@ -391,8 +391,9 @@ async def run_full_test():
             from app.services.background_manager import BackgroundVideoManager
             from app.services.quran_reel_renderer import QuranReelRenderer
 
+            rag = RAGEngine(settings)
             bg_manager = BackgroundVideoManager(settings)
-            reel_renderer = QuranReelRenderer(settings)
+            reel_renderer = QuranReelRenderer(settings, rag)
 
             # The LLM chose an intelligent visual theme based on the verses!
             visual_theme = generated.get("visual_theme", "nature landscape")

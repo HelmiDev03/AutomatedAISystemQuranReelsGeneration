@@ -58,36 +58,78 @@ async def generate():
         topic_name = row[0] if row else "Patience during hardship"
         
     print_ok(f"Selected new daily topic: {topic_name}")
-    print_header("Generating Content")
-    print_info(f"Topic: {topic_name}")
-    start = time.time()
+    MAX_ATTEMPTS = 3
+    generated = None
     
-    try:
-        generated = await generator.generate(
-            content_type="quran_verse",
-            topic_name=topic_name,
-        )
-    except Exception as e:
-        print_fail(f"LLM Generation Failed: {e}")
-        sys.exit(1)
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        print_header(f"Generating Content (Attempt {attempt}/{MAX_ATTEMPTS})")
+        print_info(f"Topic: {topic_name}")
+        start = time.time()
         
-    elapsed = time.time() - start
-    print_ok(f"Content generated in {elapsed:.1f}s!")
+        try:
+            generated = await generator.generate(
+                content_type="quran_verse",
+                topic_name=topic_name,
+            )
+        except Exception as e:
+            print_fail(f"LLM Generation Failed: {e}")
+            if attempt < MAX_ATTEMPTS:
+                print_info("Retrying with a new topic...")
+                async with async_session() as session:
+                    result = await session.execute(text("SELECT name FROM content_topics ORDER BY RANDOM() LIMIT 1"))
+                    row = result.fetchone()
+                    topic_name = row[0] if row else "Patience during hardship"
+                print_ok(f"New topic: {topic_name}")
+                continue
+            sys.exit(1)
+            
+        elapsed = time.time() - start
+        print_ok(f"Content generated in {elapsed:.1f}s!")
+        
+        # 4. Content Verification
+        print_header("Verifying Content")
+        verification = await verifier.verify(generated)
+        if verification.passed:
+            print_ok(f"Verification PASSED -- Confidence: {verification.composite_score}")
+            break
+        else:
+            print_fail(f"Verification Failed! Issues: {verification.issues}")
+            if attempt < MAX_ATTEMPTS:
+                print_info("LLM hallucinated. Retrying with a new topic...")
+                async with async_session() as session:
+                    result = await session.execute(text("SELECT name FROM content_topics ORDER BY RANDOM() LIMIT 1"))
+                    row = result.fetchone()
+                    topic_name = row[0] if row else "Patience during hardship"
+                print_ok(f"New topic: {topic_name}")
+                generated = None
+                continue
+            else:
+                print_fail("CRITICAL: All attempts failed verification. Aborting pipeline.")
+                sys.exit(1)
     
+    if generated is None:
+        print_fail("CRITICAL: No content was generated successfully.")
+        sys.exit(1)
+
     arabic = generated.get("arabic_text", "")
     english = generated.get("english_text", "")
-    caption = generated.get("caption", "")
     visual_theme = generated.get("visual_theme", "nature landscape")
     source_ref = generated.get("source_ref", "")
 
-    # 4. Content Verification
-    print_header("Verifying Content")
-    verification = await verifier.verify(generated)
-    if not verification.passed:
-        print_fail(f"Verification Failed! Issues: {verification.issues}")
-        print_info("Ignoring verification failure because we are in testing mode without a full database.")
-    else:
-        print_ok(f"Verification PASSED -- Confidence: {verification.composite_score}")
+    # Build the final Instagram caption in the mandatory format:
+    # 1. Arabic reflection
+    # 2. Arabic hashtags
+    # 3. English reflection  
+    # 4. English hashtags
+    caption_arabic = generated.get("caption_arabic", "")
+    caption_english = generated.get("caption_english", "")
+    hashtags_ar = generated.get("hashtags_arabic", [])
+    hashtags_en = generated.get("hashtags_english", [])
+    
+    ar_tags = " ".join(f"#{h.lstrip('#')}" for h in hashtags_ar)
+    en_tags = " ".join(f"#{h.lstrip('#')}" for h in hashtags_en)
+    
+    caption = f"{caption_arabic}\n\n{ar_tags}\n\n{caption_english}\n\n{en_tags}"
 
     # 5. Video Rendering
     print_header("Rendering Quran Reel")
@@ -130,7 +172,6 @@ async def generate():
         "reel_path": reel_path,
         "background_video": bg_video_path,
         "caption": caption,
-        "hashtags": generated.get("hashtags", []),
         "timestamp": time.time()
     }
     

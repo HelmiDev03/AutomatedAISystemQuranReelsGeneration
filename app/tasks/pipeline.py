@@ -257,7 +257,9 @@ async def _run_pipeline() -> dict:
             publisher = InstagramPublisher(settings)
 
             try:
-                caption_text = f"{post.caption}\n\n{post.hashtags}" if post.hashtags else post.caption
+                caption_text = post.caption or ""
+                if post.hashtags and "#" not in caption_text:
+                    caption_text = f"{caption_text}\n\n" + " ".join(f"#{tag.lstrip('#')}" for tag in post.hashtags.split())
 
                 if media_format == "reel":
                     ig_media_id = await publisher.publish_reel(
@@ -408,9 +410,10 @@ def publish_approved_post(self, post_id: str) -> dict:
             if not post.media_assets:
                 return {"status": "no_media"}
 
-            # Get the primary media asset
             primary_asset = post.media_assets[0]
-            caption_text = f"{post.caption}\n\n{post.hashtags}" if post.hashtags else (post.caption or "")
+            caption_text = post.caption or ""
+            if post.hashtags and "#" not in caption_text:
+                caption_text = f"{caption_text}\n\n" + " ".join(f"#{tag.lstrip('#')}" for tag in post.hashtags.split())
 
             try:
                 media_format = post.media_format

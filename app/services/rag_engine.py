@@ -315,24 +315,29 @@ class RAGEngine:
         log = logger.bind(surah=surah, ayah=ayah)
         log.debug("rag_engine.verify_quran_verse.start")
 
-        # Look up by metadata filter
+        # Look up by deterministic ID first since it is 100% reliable
+        verse_id = f"quran_{surah:03d}_{ayah:03d}"
         try:
-            result = await self._run_sync(
-                self._quran_col.get,
-                where={"$and": [{"surah_number": surah}, {"ayah_number": ayah}]},
-                include=["metadatas", "documents"],
-            )
-        except Exception:
-            # Fallback: some ChromaDB versions don't support $and; try
-            # querying with a single compound id instead.
-            verse_id = f"{surah}:{ayah}"
             result = await self._run_sync(
                 self._quran_col.get,
                 ids=[verse_id],
                 include=["metadatas", "documents"],
             )
+        except Exception:
+            result = {"ids": []}
 
-        if not result["ids"]:
+        # Fallback to metadata filter if ID lookup failed
+        if not result.get("ids"):
+            try:
+                result = await self._run_sync(
+                    self._quran_col.get,
+                    where={"$and": [{"surah_number": surah}, {"ayah_number": ayah}]},
+                    include=["metadatas", "documents"],
+                )
+            except Exception:
+                result = {"ids": []}
+
+        if not result.get("ids"):
             log.warning("rag_engine.verify_quran_verse.not_found")
             return False
 
@@ -364,6 +369,24 @@ class RAGEngine:
         )
         return match
 
+    @staticmethod
+    def _normalize_hadith_collection(collection: str) -> str:
+        """Map common collection name variants to canonical database keys."""
+        name_clean = collection.lower().replace(" ", "_").replace("-", "_").replace("'", "").replace("`", "")
+        if "bukhari" in name_clean:
+            return "bukhari"
+        if "muslim" in name_clean:
+            return "muslim"
+        if "dawud" in name_clean:
+            return "abudawud"
+        if "tirmidhi" in name_clean:
+            return "tirmidhi"
+        if "nasai" in name_clean:
+            return "nasai"
+        if "majah" in name_clean:
+            return "ibnmajah"
+        return name_clean
+
     async def get_hadith_grade(
         self, collection: str, number: int
     ) -> str | None:
@@ -382,31 +405,38 @@ class RAGEngine:
             Grade string (``"sahih"``, ``"hasan"``, ``"daif"``, etc.)
             or ``None`` if the hadith is not found.
         """
-        log = logger.bind(collection=collection, number=number)
+        norm_collection = self._normalize_hadith_collection(collection)
+        log = logger.bind(collection=collection, norm_collection=norm_collection, number=number)
         log.debug("rag_engine.get_hadith_grade.start")
 
-        # Try metadata-based lookup first
+        # Look up by deterministic ID first since it is 100% reliable
+        hadith_id = f"hadith_{norm_collection}_{number:05d}"
         try:
-            result = await self._run_sync(
-                self._hadith_col.get,
-                where={
-                    "$and": [
-                        {"collection": collection},
-                        {"number": number},
-                    ]
-                },
-                include=["metadatas"],
-            )
-        except Exception:
-            # Fallback: query by deterministic id
-            hadith_id = f"{collection}:{number}"
             result = await self._run_sync(
                 self._hadith_col.get,
                 ids=[hadith_id],
                 include=["metadatas"],
             )
+        except Exception:
+            result = {"ids": []}
 
-        if not result["ids"]:
+        # Fallback to metadata filter if ID lookup failed
+        if not result.get("ids"):
+            try:
+                result = await self._run_sync(
+                    self._hadith_col.get,
+                    where={
+                        "$and": [
+                            {"collection": norm_collection},
+                            {"number": number},
+                        ]
+                    },
+                    include=["metadatas"],
+                )
+            except Exception:
+                result = {"ids": []}
+
+        if not result.get("ids"):
             log.warning("rag_engine.get_hadith_grade.not_found")
             return None
 

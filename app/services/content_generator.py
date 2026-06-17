@@ -46,15 +46,22 @@ class IslamicPostOutput(BaseModel):
         None,
         description="Hadith grading: sahih, hasan, or daif. None for Quran.",
     )
-    caption: str = Field(
+    caption_arabic: str = Field(
         ...,
-        description="A beautiful Instagram caption providing a deep reflection. The caption MUST start with actual Arabic text using Arabic letters (حروف عربية, strictly NO English transliteration for the Arabic part), followed by the English translation or reflection underneath.",
+        description="A beautiful Arabic-only reflection/caption paragraph using Arabic letters (حروف عربية). Must be pure Arabic, no English at all.",
     )
-    hashtags: list[str] = Field(
-        ..., description="A large number of highly relevant Instagram hashtags related to Islamic Deen content for maximum reach, without leading #"
+    caption_english: str = Field(
+        ...,
+        description="A beautiful English reflection/caption paragraph. Must be pure English, no Arabic at all.",
+    )
+    hashtags_arabic: list[str] = Field(
+        ..., description="Relevant Islamic hashtags in Arabic script (e.g. قرآن, إسلام, تقوى, إيمان, ذكر_الله). Without leading #."
+    )
+    hashtags_english: list[str] = Field(
+        ..., description="Relevant Islamic hashtags in English (e.g. quran, islam, faith, muslimreminder, islamicquotes). Without leading #."
     )
 
-    @field_validator("hashtags", mode="before")
+    @field_validator("hashtags_arabic", "hashtags_english", mode="before")
     @classmethod
     def parse_hashtags(cls, v: Any) -> list[str]:
         if isinstance(v, str):
@@ -91,8 +98,28 @@ class CarouselPostOutput(BaseModel):
     slides: list[CarouselSlide] = Field(
         ..., min_length=2, max_length=10
     )
-    caption: str
-    hashtags: list[str]
+    caption_arabic: str = Field(
+        ...,
+        description="A beautiful Arabic-only reflection/caption paragraph using Arabic letters (حروف عربية). Must be pure Arabic, no English at all.",
+    )
+    caption_english: str = Field(
+        ...,
+        description="A beautiful English reflection/caption paragraph. Must be pure English, no Arabic at all.",
+    )
+    hashtags_arabic: list[str] = Field(
+        ..., description="Relevant Islamic hashtags in Arabic script. Without leading #."
+    )
+    hashtags_english: list[str] = Field(
+        ..., description="Relevant Islamic hashtags in English. Without leading #."
+    )
+
+    @field_validator("hashtags_arabic", "hashtags_english", mode="before")
+    @classmethod
+    def parse_hashtags(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            return [h.strip().lstrip('#') for h in v.replace(',', ' ').split() if h.strip()]
+        return v
+
     source_ref: str
     hadith_grade: str | None = None
     content_category: str
@@ -110,8 +137,28 @@ class ReelScriptOutput(BaseModel):
     english_text: str
     source_ref: str
     hadith_grade: str | None = None
-    caption: str
-    hashtags: list[str]
+    caption_arabic: str = Field(
+        ...,
+        description="A beautiful Arabic-only reflection/caption paragraph using Arabic letters (حروف عربية). Must be pure Arabic, no English at all.",
+    )
+    caption_english: str = Field(
+        ...,
+        description="A beautiful English reflection/caption paragraph. Must be pure English, no Arabic at all.",
+    )
+    hashtags_arabic: list[str] = Field(
+        ..., description="Relevant Islamic hashtags in Arabic script. Without leading #."
+    )
+    hashtags_english: list[str] = Field(
+        ..., description="Relevant Islamic hashtags in English. Without leading #."
+    )
+
+    @field_validator("hashtags_arabic", "hashtags_english", mode="before")
+    @classmethod
+    def parse_hashtags(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            return [h.strip().lstrip('#') for h in v.replace(',', ' ').split() if h.strip()]
+        return v
+
     on_screen_text: list[str] = Field(
         ...,
         description="Short on-screen text overlays matching narration",
@@ -166,6 +213,12 @@ STRICT RULES — violating any of these is unacceptable:
 
 11. **Tone**: Warm, welcoming, educational.  Avoid divisiveness, political
     commentary, or anything that could cause sectarian discord.
+
+12. **Caption Structure (MANDATORY)**:
+    - `caption_arabic`: Write a deep, beautiful reflection paragraph ENTIRELY in Arabic script. No English words at all.
+    - `caption_english`: Write a deep, beautiful reflection paragraph ENTIRELY in English. No Arabic words at all.
+    - `hashtags_arabic`: Provide many relevant Islamic hashtags in Arabic (e.g. قرآن, إسلام, تقوى, إيمان).
+    - `hashtags_english`: Provide many relevant Islamic hashtags in English (e.g. quran, islam, faith, islamicquotes).
 
 OUTPUT FORMAT: Respond with valid JSON matching the requested schema.
 """
@@ -485,21 +538,61 @@ class ContentGenerator:
         )
 
         result = parsed.model_dump()
-
-        # 5. Post-process: ensure hashtags are plain strings (no leading #)
-        if "hashtags" in result:
-            result["hashtags"] = [
-                tag.lstrip("#") for tag in result["hashtags"]
-            ]
-
-        # 6. Add the media_format to the result for downstream consumers
-        result["media_format"] = media_format
+        result = self._post_process_result(result, media_format)
 
         log.info(
             "content_generator.generate.done",
             confidence=result.get("confidence"),
             source_ref=result.get("source_ref", ""),
         )
+        return result
+
+    def _post_process_result(self, result: dict[str, Any], media_format: str) -> dict[str, Any]:
+        """Format caption and hashtags exactly according to mandatory rules:
+        1. Arabic reflection
+        2. Arabic hashtags
+        3. English reflection
+        4. English hashtags
+        """
+        # Ensure we have clean lists of hashtags
+        hashtags_arabic = result.get("hashtags_arabic", [])
+        if isinstance(hashtags_arabic, str):
+            hashtags_arabic = [h.strip().lstrip('#') for h in hashtags_arabic.replace(',', ' ').split() if h.strip()]
+        
+        hashtags_english = result.get("hashtags_english", [])
+        if isinstance(hashtags_english, str):
+            hashtags_english = [h.strip().lstrip('#') for h in hashtags_english.replace(',', ' ').split() if h.strip()]
+
+        # Clean individual tags
+        hashtags_arabic = [tag.lstrip("#").strip() for tag in hashtags_arabic if tag.strip()]
+        hashtags_english = [tag.lstrip("#").strip() for tag in hashtags_english if tag.strip()]
+
+        # Save cleaned lists back to result
+        result["hashtags_arabic"] = hashtags_arabic
+        result["hashtags_english"] = hashtags_english
+
+        # Combine them into a unified list of tags
+        result["hashtags"] = hashtags_arabic + hashtags_english
+
+        # Format the caption
+        caption_arabic = result.get("caption_arabic", "").strip()
+        caption_english = result.get("caption_english", "").strip()
+
+        ar_tags = " ".join(f"#{t}" for t in hashtags_arabic)
+        en_tags = " ".join(f"#{t}" for t in hashtags_english)
+
+        caption_parts = []
+        if caption_arabic:
+            caption_parts.append(caption_arabic)
+        if ar_tags:
+            caption_parts.append(ar_tags)
+        if caption_english:
+            caption_parts.append(caption_english)
+        if en_tags:
+            caption_parts.append(en_tags)
+
+        result["caption"] = "\n\n".join(caption_parts)
+        result["media_format"] = media_format
         return result
 
     async def generate_with_custom_prompt(
@@ -547,12 +640,7 @@ class ContentGenerator:
 
         parsed = await self._call_llm(full_prompt, response_model)
         result = parsed.model_dump()
-
-        if "hashtags" in result:
-            result["hashtags"] = [
-                tag.lstrip("#") for tag in result["hashtags"]
-            ]
-        result["media_format"] = media_format
+        result = self._post_process_result(result, media_format)
 
         log.info(
             "content_generator.generate_custom.done",

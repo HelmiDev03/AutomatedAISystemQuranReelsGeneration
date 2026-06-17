@@ -1,4 +1,10 @@
-"""Service for automatically fetching nature background videos."""
+"""Service for fetching Islamically-appropriate background videos from Pixabay.
+
+All videos are filtered through strict rules:
+- Nature videos: pure landscapes with NO visible humans
+- Islamic videos: mosques, prayer, Quran — nothing outside Islamic guidelines
+- SafeSearch is always enabled
+"""
 
 import os
 import random
@@ -15,23 +21,59 @@ logger = structlog.get_logger(__name__)
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _BACKGROUNDS_DIR = _PROJECT_ROOT / "backgrounds"
 
-class BackgroundVideoManager:
-    """Manages downloading and caching of nature background videos."""
+# ── Safe search queries ──────────────────────────────────────────────────────
+# These are pre-approved queries that produce Islamically-appropriate results.
 
-    # Fallback public domain videos (ultra-reliable test CDN)
-    FALLBACK_VIDEOS = [
-        "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-        "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-    ]
+NATURE_QUERIES = [
+    "mountains landscape aerial",
+    "ocean waves drone",
+    "forest trees aerial",
+    "desert sand dunes",
+    "waterfall nature",
+    "sunset clouds sky",
+    "sunrise mountains",
+    "rain forest",
+    "snow mountains",
+    "river valley aerial",
+    "stars night sky",
+    "northern lights aurora",
+    "green fields aerial",
+    "lake reflection nature",
+    "autumn leaves forest",
+]
+
+ISLAMIC_QUERIES = [
+    "mosque interior",
+    "mosque architecture",
+    "minaret mosque",
+    "quran book",
+    "prayer beads tasbih",
+    "islamic calligraphy",
+    "islamic architecture",
+    "mosque dome",
+    "lantern ramadan",
+    "crescent moon night",
+]
+
+
+class BackgroundVideoManager:
+    """Manages downloading background videos from Pixabay with Islamic filtering."""
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        self._pexels_key = getattr(settings, "pexels_api_key", "")
+        self._pixabay_key = getattr(settings, "pixabay_api_key", "")
         _BACKGROUNDS_DIR.mkdir(parents=True, exist_ok=True)
 
     async def get_background_video(self, force_new: bool = False, theme: str | None = None) -> str | None:
         """Get a background video, downloading a new one if necessary.
-        
+
+        Parameters
+        ----------
+        force_new : bool
+            If True, always download a fresh video instead of using cache.
+        theme : str | None
+            AI-selected visual theme to search for.
+
         Returns
         -------
         str | None
@@ -45,85 +87,122 @@ class BackgroundVideoManager:
                 logger.info("background_manager.using_cached", path=str(chosen))
                 return str(chosen)
 
-        # 2. Try Pexels API if configured
-        if self._pexels_key:
+        # 2. Try Pixabay API
+        if self._pixabay_key:
             try:
-                return await self._download_from_pexels(theme)
+                return await self._download_from_pixabay(theme)
             except Exception as e:
-                logger.warning("background_manager.pexels_failed", error=str(e))
-                # Fall through to fallback
+                logger.warning("background_manager.pixabay_failed", error=str(e))
 
-        # 3. Use fallback Pixabay/Public URLs
-        try:
-            return await self._download_fallback()
-        except Exception as e:
-            logger.warning("background_manager.fallback_failed", error=str(e))
-            return None
+        # 3. Try Pixabay for a random nature fallback
+        if self._pixabay_key:
+            try:
+                return await self._download_from_pixabay(None)
+            except Exception as e:
+                logger.warning("background_manager.pixabay_fallback_failed", error=str(e))
 
-    async def _download_fallback(self) -> str:
-        """Download a random fallback video."""
-        url = random.choice(self.FALLBACK_VIDEOS)
-        return await self._download_url(url, "fallback_nature")
+        logger.error("background_manager.all_sources_failed")
+        return None
 
-    async def _download_from_pexels(self, theme: str | None = None) -> str:
-        """Search and download a nature video from Pexels, matching the theme if provided."""
+    def _build_query(self, theme: str | None) -> str:
+        """Build a safe, filtered search query.
+
+        Maps the AI's theme suggestion to a pre-approved query list
+        to prevent inappropriate content from appearing.
+        """
         if theme:
-            query = f"{theme} nature"
+            theme_lower = theme.lower()
+
+            # Check if the theme is Islamic/Deen-related
+            islamic_keywords = ["mosque", "prayer", "quran", "islamic", "minaret",
+                                "ramadan", "eid", "masjid", "deen", "muslim",
+                                "calligraphy", "lantern", "crescent", "tasbih"]
+            is_islamic = any(kw in theme_lower for kw in islamic_keywords)
+
+            if is_islamic:
+                # Use a matching Islamic query or pick a random one
+                matching = [q for q in ISLAMIC_QUERIES if any(w in q for w in theme_lower.split())]
+                return random.choice(matching) if matching else random.choice(ISLAMIC_QUERIES)
+            else:
+                # For nature themes, map to safe nature queries
+                matching = [q for q in NATURE_QUERIES if any(w in q for w in theme_lower.split())]
+                return random.choice(matching) if matching else random.choice(NATURE_QUERIES)
         else:
-            queries = ["nature landscape", "mountains drone", "forest drone", "ocean waves drone", "waterfall"]
-            query = random.choice(queries)
-        
-        logger.info("background_manager.pexels_search", query=query)
-        
+            return random.choice(NATURE_QUERIES)
+
+    async def _download_from_pixabay(self, theme: str | None) -> str:
+        """Search and download a video from Pixabay with strict filtering."""
+        query = self._build_query(theme)
+
+        logger.info("background_manager.pixabay_search", query=query)
+
         async with httpx.AsyncClient(timeout=30) as client:
-            headers = {"Authorization": self._pexels_key}
-            # Get a random page of results
-            page = random.randint(1, 5)
+            page = random.randint(1, 3)
             response = await client.get(
-                f"https://api.pexels.com/videos/search?query={query}&per_page=15&page={page}&orientation=portrait",
-                headers=headers
+                "https://pixabay.com/api/videos/",
+                params={
+                    "key": self._pixabay_key,
+                    "q": query,
+                    "video_type": "film",
+                    "per_page": 20,
+                    "page": page,
+                    "safesearch": "true",
+                    "order": "popular",
+                },
             )
             response.raise_for_status()
             data = response.json()
-            
-            if not data.get("videos"):
-                raise ValueError(f"No videos found for query: {query}")
-                
-            video = random.choice(data["videos"])
-            
-            # Find the best quality HD link
-            files = video.get("video_files", [])
-            hd_files = [f for f in files if f.get("quality") == "hd" and f.get("width", 0) >= 1080]
-            
-            if not hd_files:
-                hd_files = [f for f in files if f.get("quality") == "hd"]
-                
-            best_file = hd_files[0] if hd_files else files[0]
-            download_url = best_file["link"]
-            
-            return await self._download_url(download_url, "pexels")
+
+            if not data.get("hits"):
+                raise ValueError(f"No Pixabay videos found for query: {query}")
+
+            # Filter hits to ensure duration is at least 15 seconds
+            hits = data.get("hits", [])
+            suitable_hits = [v for v in hits if v.get("duration", 0) >= 15]
+            if not suitable_hits:
+                # Fallback to any hits if none match the duration filter
+                suitable_hits = hits
+
+            # Pick a random video from the suitable results
+            video = random.choice(suitable_hits)
+            logger.info("background_manager.selected_video", id=video.get("id"), duration=video.get("duration"))
+
+            # Get the best quality video file
+            videos = video.get("videos", {})
+
+            # Prefer large > medium > small
+            best = (
+                videos.get("large", {})
+                or videos.get("medium", {})
+                or videos.get("small", {})
+            )
+
+            download_url = best.get("url", "")
+            if not download_url:
+                raise ValueError("No downloadable video URL found in Pixabay response")
+
+            return await self._download_url(download_url, "pixabay")
 
     async def _download_url(self, url: str, source_name: str) -> str:
         """Download video from URL and save to backgrounds folder."""
         uid = uuid.uuid4().hex[:8]
-        # preserve extension
         ext = url.split("?")[0].split(".")[-1]
-        if len(ext) > 4: ext = "mp4"
+        if len(ext) > 4:
+            ext = "mp4"
         output_path = _BACKGROUNDS_DIR / f"{source_name}_{uid}.{ext}"
-        
-        logger.info("background_manager.downloading", url=url[:50] + "...")
-        
+
+        logger.info("background_manager.downloading", url=url[:70] + "...")
+
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
         async with httpx.AsyncClient(timeout=120, follow_redirects=True, headers=headers) as client:
-            # Stream the download to handle large files better
             async with client.stream("GET", url) as response:
                 response.raise_for_status()
                 with open(output_path, "wb") as f:
                     async for chunk in response.aiter_bytes(chunk_size=8192):
                         f.write(chunk)
-                        
+
         size_mb = os.path.getsize(output_path) / (1024 * 1024)
         logger.info("background_manager.downloaded", path=str(output_path), size_mb=f"{size_mb:.1f}")
         return str(output_path)

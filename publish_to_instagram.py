@@ -61,9 +61,6 @@ async def publish():
         sys.exit(1)
         
     caption = data.get("caption", "")
-    hashtags = data.get("hashtags", [])
-    if hashtags:
-        caption += "\n\n" + " ".join([f"#{h}" for h in hashtags])
         
     print_ok("Validation Passed! Ready to publish.")
     print_info(f"File: {reel_path}")
@@ -111,7 +108,7 @@ async def publish():
         bg_video = data.get("background_video")
         if bg_video and os.path.exists(bg_video):
             os.remove(bg_video)
-            print_ok(f"Deleted Pexels background video to save space: {os.path.basename(bg_video)}")
+            print_ok(f"Deleted Pixabay background video to save space: {os.path.basename(bg_video)}")
         
         # Also clean up the generation JSON to prevent accidental double-posting
         if os.path.exists("latest_generation.json"):

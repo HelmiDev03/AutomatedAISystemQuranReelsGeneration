@@ -44,8 +44,8 @@ class Settings(BaseSettings):
     cloudinary_api_key: str = ""
     cloudinary_api_secret: str = ""
 
-    # ── Pexels (Background Videos) ───────────────────────────────────────
-    pexels_api_key: str = ""
+    # ── Pixabay (Background Videos) ─────────────────────────────────────
+    pixabay_api_key: str = ""
 
     # ── Instagram Graph API ──────────────────────────────────────────────
     instagram_access_token: str = ""

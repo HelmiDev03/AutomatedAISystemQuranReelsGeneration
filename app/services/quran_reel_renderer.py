@@ -558,6 +558,28 @@ class QuranReelRenderer:
 
         return img
 
+    @staticmethod
+    def _normalize_surah_name_ar(name: str) -> str:
+        """Replace single-letter Surah names with their full word spellings."""
+        import unicodedata
+        # NFC normalisation
+        text = unicodedata.normalize("NFC", name.strip())
+        # Remove Arabic diacritical marks (U+064B–U+065F, U+0670, U+0653)
+        diacritics = set(range(0x064B, 0x0660)) | {0x0670, 0x0653, 0x0654, 0x0655}
+        text = "".join(ch for ch in text if ord(ch) not in diacritics)
+        
+        words = text.split()
+        for idx, w in enumerate(words):
+            if w == "ص":
+                words[idx] = "صاد"
+            elif w == "ق":
+                words[idx] = "قاف"
+            elif w == "ن":
+                words[idx] = "نون"
+            elif w == "يس":
+                words[idx] = "ياسين"
+        return " ".join(words)
+
     def _create_verse_clips(
         self,
         verses: list[dict],
@@ -580,6 +602,8 @@ class QuranReelRenderer:
             arabic = v.get("arabic_text", "")
             verse_num = v.get("verse_number", "")
             surah_name_ar = v.get("surah_name_arabic", "")
+            if surah_name_ar:
+                surah_name_ar = self._normalize_surah_name_ar(surah_name_ar)
             ref = f" {surah_name_ar} : {verse_num} " if surah_name_ar else ""
             
             # Exact timing from the fetched MP3s!

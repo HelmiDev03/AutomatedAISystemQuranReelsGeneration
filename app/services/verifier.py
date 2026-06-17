@@ -328,17 +328,13 @@ class ContentVerifier:
 
         # Check Quran references (existence only; text verified in step 3)
         for ref in quran_refs:
-            found = await self._rag.verify_quran_verse(
+            # Use verify_quran_verse with empty text for existence check.
+            # This uses ChromaDB metadata filtering (exact surah+ayah lookup),
+            # NOT semantic search, so it reliably finds the exact verse.
+            exists = await self._rag.verify_quran_verse(
                 ref["surah"], ref["ayah"], ""
             )
-            # We pass empty text here — we just want to know if the verse
-            # exists.  Full text matching happens in step 3.
-            # verify_quran_verse with empty string will return False, so
-            # we do a simple existence check via query instead.
-            quran_hits = await self._rag.query_quran(
-                f"surah {ref['surah']} ayah {ref['ayah']}", top_k=1
-            )
-            if quran_hits and quran_hits[0].get("surah") == ref["surah"]:
+            if exists:
                 verified_count += 1
                 details[f"quran_{ref['surah']}:{ref['ayah']}"] = "verified"
             else:
