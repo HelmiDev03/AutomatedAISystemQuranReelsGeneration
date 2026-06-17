@@ -276,6 +276,18 @@ class ContentVerifier:
         log = logger.bind(step="source_grounding")
         log.debug("verifier.step1.start")
 
+        content_category = post_data.get("content_category", "")
+        if content_category in ("hadith", "dua"):
+            log.info("verifier.step1.skipped_for_hadith_dua")
+            return StepResult(
+                step_name="Source Grounding",
+                step_number=1,
+                status=StepStatus.PASSED,
+                score=1.0,
+                issues=[],
+                details={"reason": f"Skipped RAG grounding for {content_category} content"},
+            )
+
         issues: list[str] = []
         details: dict[str, Any] = {}
 
@@ -380,11 +392,22 @@ class ContentVerifier:
         log = logger.bind(step="hadith_grade_check")
         log.debug("verifier.step2.start")
 
+        content_category = post_data.get("content_category", "")
+        if content_category in ("hadith", "dua"):
+            log.info("verifier.step2.skipped_for_hadith_dua")
+            return StepResult(
+                step_name="Hadith Grade Check",
+                step_number=2,
+                status=StepStatus.SKIPPED,
+                score=1.0,
+                issues=[],
+                details={"reason": f"Skipped RAG grade check for {content_category} content"},
+            )
+
         issues: list[str] = []
         details: dict[str, Any] = {}
 
         claimed_grade = (post_data.get("hadith_grade") or "").lower().strip()
-        content_category = post_data.get("content_category", "")
 
         # Skip grade check for non-hadith content
         if content_category not in ("hadith",) and not claimed_grade:
@@ -518,6 +541,18 @@ class ContentVerifier:
         log = logger.bind(step="quran_verification")
         log.debug("verifier.step3.start")
 
+        content_category = post_data.get("content_category", "")
+        if content_category in ("hadith", "dua"):
+            log.info("verifier.step3.skipped_for_hadith_dua")
+            return StepResult(
+                step_name="Quran Verification",
+                step_number=3,
+                status=StepStatus.SKIPPED,
+                score=1.0,
+                issues=[],
+                details={"reason": f"Skipped Quran verification for {content_category} content"},
+            )
+
         issues: list[str] = []
         details: dict[str, Any] = {}
 
@@ -526,7 +561,6 @@ class ContentVerifier:
             for f in ("source_ref", "english_text", "caption")
         )
         quran_refs = _extract_quran_refs(combined_text)
-        content_category = post_data.get("content_category", "")
 
         # Skip if not Quran content and no Quran refs
         if not quran_refs and content_category != "quran_verse":

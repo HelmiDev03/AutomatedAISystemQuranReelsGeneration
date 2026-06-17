@@ -255,6 +255,91 @@ class ContentGenerator:
             base_url=settings.openai_base_url,
         )
 
+    def _get_system_prompt(self, content_type: str) -> str:
+        """Returns the system prompt tailored to the content type."""
+        if content_type == "hadith":
+            return """\
+You are an expert Islamic content creator for Instagram.  Your role is to
+produce accurate, beautifully-written posts that educate and inspire.
+
+STRICT RULES — violating any of these is unacceptable:
+
+1. **Greeting**: Every caption MUST begin with "As-Salamu Alaykum" (or its
+   full form "As-Salamu Alaykum wa Rahmatullahi wa Barakatuh").
+
+2. **Hadith authenticity**: Since you are generating a Hadith, you MUST retrieve a real, authentic hadith from your training data (knowledge base) regarding the requested topic. You should quote a famous authentic hadith from primary collections (Sahih al-Bukhari, Sahih Muslim, Sunan Abi Dawud, Jami` at-Tirmidhi, Sunan an-Nasa'i, Sunan Ibn Majah). Do NOT return placeholders like "No relevant hadith found". Provide actual authentic Arabic text and English translation.
+
+3. **Source citation**: ALWAYS cite the full source — book name, chapter
+   (if available), and hadith number.  Example: "Sahih al-Bukhari 6018".
+
+4. **Hadith grade**: Include the grading (sahih / hasan / da'if) for every
+   hadith you cite.  Never omit it.
+
+5. **Transliteration**: Always include a transliteration line for Arabic
+   content so non-Arabic readers can benefit.
+
+6. **No fiqh rulings**: Stick to universally agreed-upon teachings.  Do NOT
+   issue legal rulings (fatawa) or recommend a specific madhab.
+
+7. **No madhab mixing**: If a topic touches on fiqh differences,
+   acknowledge the diversity of scholarly opinion without taking sides.
+
+8. **Da'if hadiths**: If the only available hadith is graded da'if, you MUST
+   clearly label it as da'if in the caption and explain that scholars differ
+   on its authenticity.
+
+9. **Confidence**: Honestly self-assess your confidence (0-1) that the
+   post is factually accurate and properly sourced.
+
+10. **Tone**: Warm, welcoming, educational.  Avoid divisiveness, political
+    commentary, or anything that could cause sectarian discord.
+
+11. **Caption Structure (MANDATORY)**:
+    - `caption_arabic`: Write a deep, beautiful reflection paragraph ENTIRELY in Arabic script. No English words at all.
+    - `caption_english`: Write a deep, beautiful reflection paragraph ENTIRELY in English. No Arabic words at all.
+    - `hashtags_arabic`: Provide many relevant Islamic hashtags in Arabic (e.g. قرآن, إسلام, تقوى, إيمان).
+    - `hashtags_english`: Provide many relevant Islamic hashtags in English (e.g. quran, islam, faith, islamicquotes).
+
+OUTPUT FORMAT: Respond with valid JSON matching the requested schema.
+"""
+        elif content_type == "dua":
+            return """\
+You are an expert Islamic content creator for Instagram.  Your role is to
+produce accurate, beautifully-written posts that educate and inspire.
+
+STRICT RULES — violating any of these is unacceptable:
+
+1. **Greeting**: Every caption MUST begin with "As-Salamu Alaykum" (or its
+   full form "As-Salamu Alaykum wa Rahmatullahi wa Barakatuh").
+
+2. **Dua authenticity**: Since you are generating a Dua (supplication from people to Allah), you MUST retrieve or write a beautiful, authentic supplication from your knowledge base (e.g. from the Holy Quran, authentic Hadiths, or general beautiful supplications). It must be phrased as a supplication to Allah (asking for mercy, guidance, forgiveness, etc.). Do NOT return placeholders. Provide actual Arabic text and English translation.
+
+3. **Source citation**: If the dua is from the Quran or Hadith, cite the source. Otherwise, cite it as "Supplication" or general dua.
+
+4. **Transliteration**: Always include a transliteration line for Arabic
+   content so non-Arabic readers can benefit.
+
+5. **No fiqh rulings**: Stick to universally agreed-upon teachings.  Do NOT
+   issue legal rulings (fatawa) or recommend a specific madhab.
+
+6. **Confidence**: Honestly self-assess your confidence (0-1) that the
+   post is factually accurate and properly sourced.
+
+7. **Tone**: Warm, welcoming, educational.  Avoid divisiveness, political
+   commentary, or anything that could cause sectarian discord.
+
+8. **Caption Structure (MANDATORY)**:
+    - `caption_arabic`: Write a deep, beautiful reflection paragraph ENTIRELY in Arabic script. No English words at all.
+    - `caption_english`: Write a deep, beautiful reflection paragraph ENTIRELY in English. No Arabic words at all.
+    - `hashtags_arabic`: Provide many relevant Islamic hashtags in Arabic (e.g. قرآن, إسلام, تقوى, إيمان).
+    - `hashtags_english`: Provide many relevant Islamic hashtags in English (e.g. quran, islam, faith, islamicquotes).
+
+OUTPUT FORMAT: Respond with valid JSON matching the requested schema.
+"""
+        else:
+            return _SYSTEM_PROMPT
+
+
     # ── Context building ────────────────────────────────────────────────
 
     async def _build_context(
@@ -278,7 +363,15 @@ class ContentGenerator:
             Formatted context string.
         """
         query = f"{content_type}: {topic_name}"
-        results = await self._rag.query_all(query, top_k=5)
+        if content_type == "hadith":
+            # For hadith posts, retrieve ONLY hadith context
+            results = {"quran": [], "hadith": await self._rag.query_hadith(query, top_k=5)}
+        elif content_type == "quran_verse":
+            # For Quran posts, retrieve ONLY Quran context
+            results = {"quran": await self._rag.query_quran(query, top_k=5), "hadith": []}
+        else:
+            # For dua and other posts, retrieve both
+            results = await self._rag.query_all(query, top_k=5)
 
         sections: list[str] = []
 
@@ -364,16 +457,45 @@ class ContentGenerator:
             ),
         }
 
+        type_guidance = ""
+        if content_type == "hadith":
+            type_guidance = (
+                "CRITICAL REQUIREMENT: Since the CONTENT TYPE is 'hadith', the generated post MUST be an authentic saying or action of "
+                "Prophet Muhammad (peace and blessings be upon him) cited from an authentic hadith collection. Set content_category "
+                "to 'hadith' in the response."
+            )
+        elif content_type == "dua":
+            type_guidance = (
+                "CRITICAL REQUIREMENT: Since the CONTENT TYPE is 'dua', the generated post MUST be a supplication (dua) from "
+                "people to Allah (e.g. asking Allah for forgiveness, guidance, mercy, starting with 'O Allah', 'Allahumma', "
+                "'Rabbana', or similar supplication phrasing). Ensure that the Arabic and English text is formatted as a "
+                "direct prayer/supplication. Set content_category to 'dua' in the response."
+            )
+        elif content_type == "quran_verse":
+            type_guidance = (
+                "CRITICAL REQUIREMENT: Since the CONTENT TYPE is 'quran_verse', the generated post MUST be a verse from the Holy Quran "
+                "cited from the CONTEXT. Set content_category to 'quran_verse' in the response."
+            )
+
         prompt = (
             f"Create an Instagram {media_format} post about the following "
             f"Islamic topic.\n\n"
             f"CONTENT TYPE: {content_type}\n"
             f"TOPIC: {topic_name}\n\n"
             f"FORMAT INSTRUCTIONS:\n{format_guidance.get(media_format, format_guidance['quote_card'])}\n\n"
-            f"VERIFIED CONTEXT (use ONLY these sources):\n{context}\n\n"
-            "Remember: cite sources exactly as they appear above.  "
-            "Do NOT invent or paraphrase hadith text."
+            f"{type_guidance}\n\n"
         )
+        if content_type in ("hadith", "dua"):
+            prompt += (
+                f"CONTEXT REFERENCE (you can use this if helpful, but you are trusted to provide an authentic hadith/dua from your own knowledge base):\n{context}\n\n"
+                "Provide a complete, authentic post. Ensure the Arabic and English texts are fully populated."
+            )
+        else:
+            prompt += (
+                f"VERIFIED CONTEXT (use ONLY these sources):\n{context}\n\n"
+                "Remember: cite sources exactly as they appear above.  "
+                "Do NOT invent or paraphrase hadith text."
+            )
         return prompt
 
     # ── LLM call ────────────────────────────────────────────────────────
@@ -392,6 +514,7 @@ class ContentGenerator:
         response_model: type[BaseModel],
         *,
         use_complex: bool = False,
+        system_prompt: str | None = None,
     ) -> BaseModel:
         """Call the LLM API with JSON mode (Groq/OpenAI compatible).
 
@@ -403,6 +526,8 @@ class ContentGenerator:
             Pydantic model describing the desired JSON schema.
         use_complex : bool
             If ``True``, use the more capable model.
+        system_prompt : str | None
+            Custom system prompt to override default.
 
         Returns
         -------
@@ -418,8 +543,9 @@ class ContentGenerator:
         schema_json = json.dumps(
             response_model.model_json_schema(), indent=2, ensure_ascii=False
         )
+        sys_prompt = system_prompt or _SYSTEM_PROMPT
         system_with_schema = (
-            f"{_SYSTEM_PROMPT}\n\n"
+            f"{sys_prompt}\n\n"
             f"You MUST respond with valid JSON matching this schema:\n"
             f"```json\n{schema_json}\n```\n\n"
             f"Return ONLY the JSON object, no markdown fences or extra text."
@@ -533,8 +659,9 @@ class ContentGenerator:
         use_complex = media_format == "carousel"
 
         # 4. Call LLM
+        sys_prompt = self._get_system_prompt(content_type)
         parsed = await self._call_llm(
-            user_prompt, response_model, use_complex=use_complex
+            user_prompt, response_model, use_complex=use_complex, system_prompt=sys_prompt
         )
 
         result = parsed.model_dump()
@@ -599,6 +726,7 @@ class ContentGenerator:
         self,
         custom_prompt: str,
         media_format: str = "quote_card",
+        content_type: str = "general",
     ) -> dict[str, Any]:
         """Generate content with a fully custom user prompt.
 
@@ -612,6 +740,8 @@ class ContentGenerator:
             Free-form prompt describing the desired content.
         media_format : str
             Target media format.
+        content_type : str
+            The type of content being generated.
 
         Returns
         -------
@@ -622,7 +752,7 @@ class ContentGenerator:
         log.info("content_generator.generate_custom.start")
 
         # Retrieve RAG context from the custom prompt itself
-        context = await self._build_context("general", custom_prompt)
+        context = await self._build_context(content_type, custom_prompt)
 
         schema_map: dict[str, type[BaseModel]] = {
             "quote_card": IslamicPostOutput,
@@ -638,7 +768,8 @@ class ContentGenerator:
             "Do NOT invent or paraphrase hadith text."
         )
 
-        parsed = await self._call_llm(full_prompt, response_model)
+        sys_prompt = self._get_system_prompt(content_type)
+        parsed = await self._call_llm(full_prompt, response_model, system_prompt=sys_prompt)
         result = parsed.model_dump()
         result = self._post_process_result(result, media_format)
 

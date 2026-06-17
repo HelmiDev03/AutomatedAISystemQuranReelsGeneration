@@ -1,19 +1,15 @@
 # =====================================================================
-#  Quran Light post generator
+#  Quran Light Dua post generator
 #  ---------------------------------------------------------------
 #  HOW TO USE:
-#   1) Edit CONTENT below with your new hadith/quote text.
+#   1) Edit CONTENT below with your new dua/quote text.
 #   2) (Optional) put a photo file in this same folder and set PHOTO
 #      to its filename, to replace the profile picture circle.
-#   3) Run:   python3 generate_post.py
+#   3) Run:   python generate_post.py
 #   4) Find the result as final_post.png in this same folder.
-#
-#  Requirements: Python 3 + Pillow  ->  pip install pillow
-#  (also pip install arabic-reshaper python-bidi — used automatically
-#   as a fallback on systems where Pillow's Raqm text engine isn't
-#   available, e.g. some Windows Python installs)
 # =====================================================================
-CONTENT=" الْمَلِكَ فَجَلَسَ إِلَيْهِ كَمَا كَانَ يَجْلَسُ، فَقَالَ لَهُ الْمَلِكُ: مَنْ رَدَّ عَلَيْكَ بَصَرَكَ؟ قَالَ: رَبِّي. قَالَ: وَلَكَ رَبٌّ غَيْرِي؟ قَالَ: رَبِّي وَرَبُّكَ اللَّهُ. فَأَخَذَهُ فَلَمْ يَزَلْ يُعَذِّبُهُ حَتَّى دَلَّ عَلَى الْغُلاَمِ، فَجِيءَ بِالْغُلاَمِ، فَقَالَ لَهُ الْمَلِكُ: أَيْ بُنَيَّ قَدْ بَلَغَ مِنْ سِحْرِكَ مَا تُبْرِئُ الأَكْمَهَ وَالأَبْرَصَ وَتَفْعَلُ وَتَفعلُ! فَقَالَ: إِنِّي لاَ أَشْفِي أَحَدًا، إِنَّمَا يَشْفِي اللَّهُ. فَأَخَذَهُ فَلَمْ يَزَلْ يُعَذِّبُهُ حَتَّى دَلَّ عَلَى الرَّاهِبِ، فَجِيءَ بِالرَّاهِبِ فَقِيلَ لَهُ: ارْجِعْ عَنْ دِينِكَ. فَأَبَى، فَدَعَا بِالْمِشْشَارِ، فَوَضَعَ الْمِشْشَارَ فِي مَفْرِقِ رَأْسِهِ، فَشَقَّهُ حَتَّى وَقَعَ شِقَّاهُ، ثُمَّ جِيءَ بِجَلِيسِ الْمَلِكِ فَقِيلَ لَهُ: ارْجِعْ عَنْ دِينِكَ. فَأَبَى فَوَضَعَ الْمِشْشَارَ فِي مَفْرِقِ رَأْسِهِ، فَشَقَّهُ بِهِ حَتَّى وَقَعَ شِقَّاهُ"
+
+CONTENT="اللَّهُمَّ اهْدِنِي وَارْزُقْنِي وَعَافِنِي وَارْحَمْنِي، اللَّهُمَّ إِنِّي أَسْأَلُكَ الْعَفْوَ وَالْعَافِيَةَ فِي الدُّنْيَا وَالْآخِرَةِ، اللَّهُمَّ اكْفِنِي بِحَلَالِكَ عَنْ حَرَامِكَ وَأَغْنِنِي بِفَضْلِكَ عَمَّنْ سِوَاكَ، اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ وَالْعَجْزِ وَالْكَسَلِ، رَبَّنَا تَقَبَّلْ مِنَّا إِنَّكَ أَنْتَ السَّمِيعُ الْعَلِيمُ، وَتُبْ عَلَيْنَا إِنَّكَ أَنْتَ التَّوَّابُ الرَّحِيمُ"
 PHOTO = ""   # e.g. "myphoto.jpg" — leave as None to keep the original photo
 
 # =====================================================================
@@ -26,13 +22,12 @@ from PIL import Image, ImageDraw, ImageFont
 HERE = os.path.dirname(os.path.abspath(__file__))
 BG_PATH = os.path.join(HERE, "background.png")
 CAIRO_PATH = os.path.join(HERE, "Cairo.ttf")
-AMIRI_PATH = os.path.join(HERE, "Amiri-Bold.ttf")
 OUTPUT_PATH = os.path.join(HERE, "final_post.png")
 
 # Measured box (text panel) coordinates on the 1254x1254 artwork
-BOX = (179, 611, 1084, 1054)          # left, top, right, bottom
-PANEL_COLOR = (2, 24, 15)             # matches the artwork's dark panel
-TEXT_COLOR = (243, 230, 198)          # cream/gold text color
+BOX = (200, 640, 1054, 970)            # left, top, right, bottom
+TEXT_COLOR = (18, 27, 15)              # dark green/charcoal text color to match the theme
+LINE_HEIGHT_RATIO = 1.65               # line height ratio for clean spacing
 
 # Profile photo circle coordinates (square bounding box)
 CIRCLE = (552, 34, 552 + 148, 34 + 148)
@@ -40,9 +35,8 @@ CIRCLE = (552, 34, 552 + 148, 34 + 148)
 
 # ---------------------------------------------------------------------
 # Detect whether this Pillow build has working Raqm support. If yes, we
-# use the Cairo font directly (closest match to the original artwork).
-# If not, we fall back to arabic-reshaper + python-bidi with the Amiri
-# font, which works with plain Pillow and no extra system libraries.
+# use the Cairo font directly. If not, we fall back to arabic-reshaper 
+# + python-bidi which works with plain Pillow.
 # ---------------------------------------------------------------------
 def _detect_raqm():
     try:
@@ -71,7 +65,8 @@ def load_font(size):
             pass
         return font
     else:
-        return ImageFont.truetype(AMIRI_PATH, size)
+        # Use Cairo as fallback too, so we don't depend on external missing fonts
+        return ImageFont.truetype(CAIRO_PATH, size)
 
 
 def shape(text):
@@ -116,7 +111,7 @@ def wrap_text(text, font, max_width, draw):
     return lines
 
 
-def fit_text(text, draw, max_width, max_height, start_size=64, min_size=28, line_height_ratio=1.55):
+def fit_text(text, draw, max_width, max_height, start_size=60, min_size=28, line_height_ratio=LINE_HEIGHT_RATIO):
     size = start_size
     while size >= min_size:
         font = load_font(size)
@@ -141,7 +136,6 @@ def generate(content_text, photo_path=None, output_path=OUTPUT_PATH):
     draw = ImageDraw.Draw(im)
 
     left, top, right, bottom = BOX
-
     pad_x, pad_y = 45, 20
     max_width = (right - left) - 2 * pad_x
     max_height = (bottom - top) - 2 * pad_y
@@ -161,7 +155,7 @@ def generate(content_text, photo_path=None, output_path=OUTPUT_PATH):
         draw_line(draw, (x, y), line, font, TEXT_COLOR)
         cy += line_height
 
-    if photo_path:
+    if photo_path and os.path.exists(photo_path):
         cl, ct, cr, cb = CIRCLE
         size = cr - cl
         photo = Image.open(photo_path).convert("RGB")
@@ -177,7 +171,7 @@ def generate(content_text, photo_path=None, output_path=OUTPUT_PATH):
 
 if __name__ == "__main__":
     if not HAS_RAQM:
-        print("(Using the Amiri fallback font — install/upgrade Pillow with Raqm support for the Cairo font look.)")
+        print("(Using basic fallback layout — install/upgrade Pillow with Raqm support for direct Cairo font rendering.)")
     photo_full_path = os.path.join(HERE, PHOTO) if PHOTO else None
     result = generate(CONTENT, photo_full_path)
     print("Saved:", result)

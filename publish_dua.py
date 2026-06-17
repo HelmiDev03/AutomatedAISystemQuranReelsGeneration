@@ -1,8 +1,8 @@
 """
-Standalone Instagram Publisher
+Standalone Dua Instagram Publisher
 
-Reads `latest_generation.json`, validates the output, uploads to Cloudinary, 
-and publishes the reel to Instagram.
+Reads `latest_dua_generation.json`, validates the output, uploads to Cloudinary, 
+publishes the image to Instagram, and performs local and Cloudinary cleanup.
 """
 
 import asyncio
@@ -36,12 +36,12 @@ async def publish():
     print_header("Validating Generation Data")
     
     # 1. Strict Validation
-    if not os.path.exists("latest_generation.json"):
-        print_fail("latest_generation.json not found! Run generate_reel.py first.")
+    if not os.path.exists("latest_dua_generation.json"):
+        print_fail("latest_dua_generation.json not found! Run generate_dua.py first.")
         sys.exit(1)
         
     try:
-        with open("latest_generation.json", "r", encoding="utf-8") as f:
+        with open("latest_dua_generation.json", "r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception as e:
         print_fail(f"Could not read generation data: {e}")
@@ -51,19 +51,19 @@ async def publish():
         print_fail(f"Generation did not complete successfully. Status: {data.get('status')}")
         sys.exit(1)
         
-    reel_path = data.get("reel_path")
-    if not reel_path or not os.path.exists(reel_path):
-        print_fail(f"Reel video file missing: {reel_path}")
+    image_path = data.get("image_path")
+    if not image_path or not os.path.exists(image_path):
+        print_fail(f"Dua image file missing: {image_path}")
         sys.exit(1)
         
-    if os.path.getsize(reel_path) == 0:
-        print_fail(f"Reel video file is empty (0 bytes): {reel_path}")
+    if os.path.getsize(image_path) == 0:
+        print_fail(f"Dua image file is empty (0 bytes): {image_path}")
         sys.exit(1)
         
     caption = data.get("caption", "")
         
     print_ok("Validation Passed! Ready to publish.")
-    print_info(f"File: {reel_path}")
+    print_info(f"File: {image_path}")
     
     settings = Settings()
     
@@ -77,7 +77,7 @@ async def publish():
     print_header("Uploading to Cloudinary")
     try:
         storage = CloudinaryStorage(settings)
-        upload_result = await storage.upload_video(reel_path)
+        upload_result = await storage.upload_image(image_path)
         cdn_url = upload_result["url"]
         print_ok(f"Uploaded securely to Cloudinary: {cdn_url}")
     except Exception as e:
@@ -88,12 +88,11 @@ async def publish():
     print_header("Publishing to Instagram")
     try:
         publisher = InstagramPublisher(settings)
-        ig_media_id = await publisher.publish_reel(
-            video_url=cdn_url,
-            caption=caption,
-            share_to_feed=True
+        ig_media_id = await publisher.publish_image(
+            image_url=cdn_url,
+            caption=caption
         )
-        print_ok(f"Successfully published to Instagram! Media ID: {ig_media_id}")
+        print_ok(f"Successfully published Dua to Instagram! Media ID: {ig_media_id}")
     except Exception as e:
         print_fail(f"Instagram publishing failed: {e}")
         sys.exit(1)
@@ -102,29 +101,26 @@ async def publish():
         
     print_header("Cleaning Up")
     try:
-        os.remove(reel_path)
-        print_ok(f"Deleted generated reel to save space: {os.path.basename(reel_path)}")
-        
-        bg_video = data.get("background_video")
-        if bg_video and os.path.exists(bg_video):
-            os.remove(bg_video)
-            print_ok(f"Deleted Pixabay background video to save space: {os.path.basename(bg_video)}")
+        # Delete local image
+        os.remove(image_path)
+        print_ok(f"Deleted local generated image to save space: {os.path.basename(image_path)}")
         
         # Delete from Cloudinary to free up space
         if "upload_result" in locals() and "storage" in locals():
             cloudinary_public_id = upload_result.get("public_id")
             if cloudinary_public_id:
-                await storage.delete_asset(public_id=cloudinary_public_id, resource_type="video")
-                print_ok("Deleted reel video from Cloudinary to save space.")
+                await storage.delete_asset(public_id=cloudinary_public_id, resource_type="image")
+                print_ok("Deleted image from Cloudinary to save space.")
         
-        # Also clean up the generation JSON to prevent accidental double-posting
-        if os.path.exists("latest_generation.json"):
-            os.remove("latest_generation.json")
+        # Clean up the generation JSON to prevent accidental double-posting
+        if os.path.exists("latest_dua_generation.json"):
+            os.remove("latest_dua_generation.json")
+            print_ok("Deleted latest_dua_generation.json")
     except Exception as e:
         print_fail(f"Could not perform cleanup: {e}")
         
     print_header("DONE")
-    print_ok("The Reel is now live on your Instagram!")
+    print_ok("The Dua post is now live on your Instagram!")
 
 if __name__ == "__main__":
     logging.getLogger("httpx").setLevel(logging.WARNING)
