@@ -35,31 +35,7 @@ A master shell script (`run_pipeline.sh`) is executed by a Linux `cron` timer ev
 
 ---
 
-## 🚀 Deployment Instructions (Azure VM)
 
-### 1. Transfer Code
-Do **NOT** upload the `audio_cache` or `chroma_data` folders. Zip the lightweight code and `scp` it to your Linux VM.
-
-### 2. Setup Environment
-```bash
-sudo apt update && sudo apt install -y python3-venv python3-pip ffmpeg unzip
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 3. Build Offline Databases
-```bash
-python seed_quran.py
-python download_all_audio.py
-```
-
-### 4. Automate
-Open the cron scheduler:
-```bash
-crontab -e
-```
-Add the timer at the bottom:
 ```bash
 */55 * * * * /bin/bash /path/to/automate/run_pipeline.sh
 ```
