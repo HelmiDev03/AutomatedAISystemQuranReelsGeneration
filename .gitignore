@@ -1,0 +1,43 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Media output
+media_output/
+
+# ChromaDB local data
+chroma_data/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Audio Cache
+audio_cache/
+
+# Backgrounds Cache
+backgrounds/
+
+# Automation Logs
+logs/
+latest_generation.json

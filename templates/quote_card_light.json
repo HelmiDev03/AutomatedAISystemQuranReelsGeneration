@@ -1,0 +1,69 @@
+{
+  "name": "light_islamic",
+  "description": "Light cream theme quote card with elegant Islamic styling",
+  "canvas": {
+    "width": 1080,
+    "height": 1080,
+    "background_color": "#faf6f0"
+  },
+  "gradient": {
+    "enabled": true,
+    "colors": ["#faf6f0", "#f0e8d8", "#faf6f0"],
+    "direction": "vertical"
+  },
+  "border": {
+    "enabled": true,
+    "color": "#8b6914",
+    "width": 3,
+    "margin": 40,
+    "corner_decoration": true
+  },
+  "decorative_line": {
+    "enabled": true,
+    "color": "#8b6914",
+    "y_position": 180,
+    "width": 200,
+    "thickness": 2
+  },
+  "bismillah": {
+    "enabled": true,
+    "text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+    "color": "#8b6914",
+    "font_size": 28,
+    "y_position": 120
+  },
+  "arabic_text": {
+    "color": "#1a1a1a",
+    "font": "Amiri-Regular.ttf",
+    "font_size": 52,
+    "y_start": 240,
+    "max_width": 900,
+    "line_spacing": 25,
+    "alignment": "center"
+  },
+  "english_text": {
+    "color": "#4a4a4a",
+    "font": "Arial",
+    "font_size": 28,
+    "y_start": 580,
+    "max_width": 900,
+    "line_spacing": 15,
+    "alignment": "center",
+    "italic": true
+  },
+  "source_citation": {
+    "color": "#6a6a6a",
+    "font_size": 22,
+    "y_position": 920,
+    "alignment": "center",
+    "prefix": "— "
+  },
+  "watermark": {
+    "enabled": true,
+    "text": "@your_page_name",
+    "color": "#c0b8a8",
+    "font_size": 18,
+    "position": "bottom_right",
+    "margin": 50
+  }
+}

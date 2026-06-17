@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[project]
+name = "islamic-content-automation"
+version = "0.1.0"
+description = "Automated Islamic content generation, verification, and publishing pipeline for Instagram"
+requires-python = ">=3.11"
+dependencies = [
+    # Core
+    "fastapi[all]>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic-settings>=2.5.0",
+    
+    # Database
+    "sqlalchemy[asyncio]>=2.0.35",
+    "asyncpg>=0.30.0",
+    "aiosqlite>=0.20.0",
+    "alembic>=1.14.0",
+    
+    # Task Queue
+    "celery[redis]>=5.4.0",
+    "redis>=5.2.0",
+    "flower>=2.0.0",
+    
+    # Vector Store
+    "chromadb>=0.5.0",
+    "sentence-transformers>=3.0.0",
+    
+    # AI
+    "openai>=1.50.0",
+    
+    # Media - Images
+    "Pillow>=10.4.0",
+    "arabic-reshaper>=3.0.0",
+    "python-bidi>=0.6.0",
+    
+    # Media - Video
+    "moviepy>=2.0.0",
+    
+    # TTS (free)
+    "edge-tts>=6.1.0",
+    
+    # Cloud Storage
+    "cloudinary>=1.40.0",
+    
+    # APIs
+    "httpx>=0.27.0",
+    "python-telegram-bot>=21.0",
+    
+    # Utils
+    "structlog>=24.4.0",
+    "tenacity>=9.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.7.0",
+    "mypy>=1.13.0",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

@@ -1,0 +1,99 @@
+{
+  "name": "carousel_islamic",
+  "description": "Multi-slide carousel template for educational Islamic content",
+  "canvas": {
+    "width": 1080,
+    "height": 1350,
+    "background_color": "#0d1b2a"
+  },
+  "slides": {
+    "cover": {
+      "gradient_colors": ["#0d1b2a", "#1b2838"],
+      "title": {
+        "color": "#ffffff",
+        "font_size": 56,
+        "y_position": 450,
+        "alignment": "center"
+      },
+      "subtitle": {
+        "color": "#c9a84c",
+        "font_size": 30,
+        "y_position": 550,
+        "alignment": "center"
+      },
+      "decorative_circle": {
+        "enabled": true,
+        "color": "#c9a84c",
+        "center_y": 300,
+        "radius": 120,
+        "width": 2
+      },
+      "page_indicator": {
+        "enabled": true,
+        "color": "#c9a84c",
+        "y_position": 1250,
+        "dot_size": 8,
+        "dot_spacing": 20
+      }
+    },
+    "content": {
+      "gradient_colors": ["#0d1b2a", "#162233"],
+      "header_number": {
+        "color": "#c9a84c",
+        "font_size": 72,
+        "y_position": 120,
+        "alignment": "center"
+      },
+      "arabic_text": {
+        "color": "#ffffff",
+        "font": "Amiri-Regular.ttf",
+        "font_size": 44,
+        "y_start": 300,
+        "max_width": 900,
+        "line_spacing": 22,
+        "alignment": "center"
+      },
+      "english_text": {
+        "color": "#b0b8c8",
+        "font_size": 26,
+        "y_start": 650,
+        "max_width": 900,
+        "line_spacing": 14,
+        "alignment": "center"
+      },
+      "source_ref": {
+        "color": "#8a8aaa",
+        "font_size": 20,
+        "y_position": 1180,
+        "alignment": "center"
+      },
+      "page_indicator": {
+        "enabled": true,
+        "color": "#c9a84c",
+        "y_position": 1250,
+        "dot_size": 8,
+        "dot_spacing": 20
+      }
+    },
+    "closing": {
+      "gradient_colors": ["#0d1b2a", "#1b2838"],
+      "message": {
+        "text": "Share this knowledge",
+        "color": "#c9a84c",
+        "font_size": 36,
+        "y_position": 500
+      },
+      "follow_cta": {
+        "text": "Follow for more",
+        "color": "#ffffff",
+        "font_size": 28,
+        "y_position": 600
+      },
+      "handle": {
+        "color": "#c9a84c",
+        "font_size": 32,
+        "y_position": 700
+      }
+    }
+  }
+}

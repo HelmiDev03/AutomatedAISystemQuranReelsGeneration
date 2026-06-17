@@ -1,0 +1,28 @@
+ar.abdulbasitmurattal : Abdul Basit
+ar.abdullahbasfar : Abdullah Basfar
+ar.abdurrahmaansudais : Abdurrahmaan As-Sudais
+ar.abdulsamad : Abdul Samad
+ar.shaatree : Abu Bakr Ash-Shaatree
+ar.ahmedajamy : Ahmed ibn Ali al-Ajamy
+ar.alafasy : Alafasy
+ar.hanirifai : Hani Rifai
+ar.husary : Husary
+ar.husarymujawwad : Husary (Mujawwad)
+ar.hudhaify : Hudhaify
+ar.ibrahimakhbar : Ibrahim Akhdar
+ar.mahermuaiqly : Maher Al Muaiqly
+ar.minshawi : Minshawi
+ar.minshawimujawwad : Minshawy (Mujawwad)
+ar.muhammadayyoub : Muhammad Ayyoub
+ar.muhammadjibreel : Muhammad Jibreel
+ar.saoodshuraym : Saood bin Ibraaheem Ash-Shuraym
+ar.parhizgar : Parhizgar
+ar.aymanswoaid : Ayman Sowaid
+ar.alafasy-2 : Alafasy
+ar.husary-2 : Husary
+ar.mahermuaiqly-2 : Maher Al Muaiqly
+ar.hudhaify-2 : Hudhaify
+ar.husarymujawwad-2 : Husary (Mujawwad)
+ar.minshawi-2 : Minshawi
+ar.muhammadayyoub-2 : Muhammad Ayyoub
+ar.muhammadjibreel-2 : Muhammad Jibreel
