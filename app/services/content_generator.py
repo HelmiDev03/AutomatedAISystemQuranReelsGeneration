@@ -12,7 +12,7 @@ from typing import Any
 
 import openai
 import structlog
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -53,6 +53,14 @@ class IslamicPostOutput(BaseModel):
     hashtags: list[str] = Field(
         ..., description="A large number of highly relevant Instagram hashtags related to Islamic Deen content for maximum reach, without leading #"
     )
+
+    @field_validator("hashtags", mode="before")
+    @classmethod
+    def parse_hashtags(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            return [h.strip().lstrip('#') for h in v.replace(',', ' ').split() if h.strip()]
+        return v
+
     content_category: str = Field(
         ..., description="Category such as hadith, quran_verse, dua, etc."
     )
