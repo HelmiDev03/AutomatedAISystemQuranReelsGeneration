@@ -4,10 +4,11 @@ from app.config import Settings
 
 async def test():
     settings = Settings()
-    url = f"https://graph.instagram.com/v22.0/{settings.instagram_business_id}/media"
+    business_id = "17841478280872429"
+    url = f"https://graph.instagram.com/v22.0/{business_id}/media"
     
     # Also test facebook graph url to see if that works
-    url_fb = f"https://graph.facebook.com/v22.0/{settings.instagram_business_id}/media"
+    url_fb = f"https://graph.facebook.com/v22.0/{business_id}/media"
     
     payload = {
         "access_token": settings.instagram_access_token,
