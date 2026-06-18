@@ -52,7 +52,7 @@ class InstagramPublisher:
         Must contain ``instagram_access_token`` and ``instagram_business_id``.
     """
 
-    BASE_URL = "https://graph.instagram.com/v22.0"
+    BASE_URL = "https://graph.facebook.com/v22.0"
 
     def __init__(self, settings: Settings) -> None:
         self._access_token = settings.instagram_access_token
