@@ -67,12 +67,6 @@ async def generate():
             "ONLY use hadiths from trusted primary collections where authenticity can  be verified with certainty:\n"
             "   - Sahih al-Bukhari\n"
             "   - Sahih Muslim\n"
-            "   - Riyad as-Salihin (with original source)\n"
-            "   - Al-Adab Al-Mufrad (only if authenticated)\n"
-            "   - Sunan Abu Dawud (only if authenticated)\n"
-            "   - Jami' at-Tirmidhi (only if authenticated)\n"
-            "   - Sunan an-Nasa'i (only if authenticated)\n"
-            "   - Sunan Ibn Majah (only if authenticated)"
         )
         
         response = await generator._client.chat.completions.create(

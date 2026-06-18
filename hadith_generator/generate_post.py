@@ -142,6 +142,8 @@ def generate(content_text, photo_path=None, output_path=OUTPUT_PATH):
 
     left, top, right, bottom = BOX
 
+
+
     pad_x, pad_y = 45, 20
     max_width = (right - left) - 2 * pad_x
     max_height = (bottom - top) - 2 * pad_y
