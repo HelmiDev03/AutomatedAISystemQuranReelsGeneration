@@ -285,7 +285,15 @@ class InstagramPublisher:
             f"{self.BASE_URL}/{self._ig_user_id}/media",
             data=payload,
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            try:
+                err_data = response.json()
+                err_msg = err_data.get("error", {}).get("message", str(e))
+                raise InstagramPublishError(f"Container creation failed (HTTP error): {err_msg}", error_code=err_data.get("error", {}).get("code")) from e
+            except Exception:
+                raise e
         data = response.json()
 
         if "id" not in data:
@@ -388,7 +396,15 @@ class InstagramPublisher:
                 "access_token": self._access_token,
             },
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            try:
+                err_data = response.json()
+                err_msg = err_data.get("error", {}).get("message", str(e))
+                raise InstagramPublishError(f"Publish failed (HTTP error): {err_msg}", error_code=err_data.get("error", {}).get("code")) from e
+            except Exception:
+                raise e
         data = response.json()
 
         if "id" not in data:
@@ -445,5 +461,13 @@ class InstagramPublisher:
             f"{self.BASE_URL}{endpoint}",
             params=query,
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            try:
+                err_data = response.json()
+                err_msg = err_data.get("error", {}).get("message", str(e))
+                raise InstagramPublishError(f"API GET failed (HTTP error): {err_msg}", error_code=err_data.get("error", {}).get("code")) from e
+            except Exception:
+                raise e
         return response.json()
