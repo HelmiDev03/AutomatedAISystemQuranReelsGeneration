@@ -25,34 +25,27 @@ _BACKGROUNDS_DIR = _PROJECT_ROOT / "backgrounds"
 # These are pre-approved queries that produce Islamically-appropriate results.
 
 NATURE_QUERIES = [
-    "mountains landscape aerial",
-    "ocean waves drone",
-    "forest trees aerial",
-    "desert sand dunes",
-    "waterfall nature",
-    "sunset clouds sky",
-    "sunrise mountains",
-    "rain forest",
-    "snow mountains",
-    "river valley aerial",
+    "dark nature",
+    "blue nature",
     "stars night sky",
+    "dark forest night",
+    "dark ocean waves",
+    "dark mountains night",
+    "blue forest mist",
+    "night rain",
+    "deep space nebula",
+    "dark sky clouds",
     "northern lights aurora",
-    "green fields aerial",
-    "lake reflection nature",
-    "autumn leaves forest",
+    "blue waterfall night",
 ]
 
 ISLAMIC_QUERIES = [
-    "mosque interior",
-    "mosque architecture",
-    "minaret mosque",
-    "quran book",
-    "prayer beads tasbih",
-    "islamic calligraphy",
-    "islamic architecture",
-    "mosque dome",
-    "lantern ramadan",
+    "mosque night",
+    "minaret night",
     "crescent moon night",
+    "lantern ramadan night",
+    "islamic calligraphy",
+    "tasbih night",
 ]
 
 
@@ -110,6 +103,8 @@ class BackgroundVideoManager:
         Maps the AI's theme suggestion to a pre-approved query list
         to prevent inappropriate content from appearing.
         """
+        negative_exclusions = " -woman -girl -person -man -people -human"
+
         if theme:
             theme_lower = theme.lower()
 
@@ -122,13 +117,15 @@ class BackgroundVideoManager:
             if is_islamic:
                 # Use a matching Islamic query or pick a random one
                 matching = [q for q in ISLAMIC_QUERIES if any(w in q for w in theme_lower.split())]
-                return random.choice(matching) if matching else random.choice(ISLAMIC_QUERIES)
+                base_query = random.choice(matching) if matching else random.choice(ISLAMIC_QUERIES)
             else:
                 # For nature themes, map to safe nature queries
                 matching = [q for q in NATURE_QUERIES if any(w in q for w in theme_lower.split())]
-                return random.choice(matching) if matching else random.choice(NATURE_QUERIES)
+                base_query = random.choice(matching) if matching else random.choice(NATURE_QUERIES)
         else:
-            return random.choice(NATURE_QUERIES)
+            base_query = random.choice(NATURE_QUERIES)
+
+        return base_query + negative_exclusions
 
     async def _download_from_pixabay(self, theme: str | None) -> str:
         """Search and download a video from Pixabay with strict filtering."""

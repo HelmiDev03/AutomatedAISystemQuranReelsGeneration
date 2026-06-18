@@ -86,19 +86,31 @@ async def publish():
         
     # 3. Publish to Instagram
     print_header("Publishing to Instagram")
-    try:
-        publisher = InstagramPublisher(settings)
-        ig_media_id = await publisher.publish_reel(
-            video_url=cdn_url,
-            caption=caption,
-            share_to_feed=True
-        )
-        print_ok(f"Successfully published to Instagram! Media ID: {ig_media_id}")
-    except Exception as e:
-        print_fail(f"Instagram publishing failed: {e}")
-        sys.exit(1)
-    finally:
-        await publisher.close()
+    
+    max_retries = 10
+    publisher = InstagramPublisher(settings)
+    
+    for attempt in range(1, max_retries + 1):
+        try:
+            ig_media_id = await publisher.publish_reel(
+                video_url=cdn_url,
+                caption=caption,
+                share_to_feed=True
+            )
+            print_ok(f"Successfully published to Instagram! Media ID: {ig_media_id}")
+            break
+        except Exception as e:
+            print_fail(f"Attempt {attempt}/{max_retries} failed: {e}")
+            if attempt == max_retries:
+                print_fail("All 10 attempts to publish to Instagram failed. Exiting.")
+                await publisher.close()
+                sys.exit(1)
+            import random
+            sleep_time = random.uniform(5, 10)
+            print_info(f"Waiting {sleep_time:.1f} seconds before retrying...")
+            await asyncio.sleep(sleep_time)
+            
+    await publisher.close()
         
     print_header("Cleaning Up")
     try:

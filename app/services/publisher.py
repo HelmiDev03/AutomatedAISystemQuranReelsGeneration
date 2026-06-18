@@ -85,20 +85,36 @@ class InstagramPublisher:
         """
         logger.info("ig_publish_image_start", image_url=image_url)
 
-        container_id = await self._create_container(
-            image_url=image_url,
-            caption=caption,
-        )
+        max_retries = 10
+        for attempt in range(1, max_retries + 1):
+            try:
+                container_id = await self._create_container(
+                    image_url=image_url,
+                    caption=caption,
+                )
 
-        await self._poll_container_status(container_id)
-        ig_media_id = await self._publish_container(container_id)
+                await self._poll_container_status(container_id)
+                ig_media_id = await self._publish_container(container_id)
 
-        logger.info(
-            "ig_image_published",
-            ig_media_id=ig_media_id,
-            container_id=container_id,
-        )
-        return ig_media_id
+                logger.info(
+                    "ig_image_published",
+                    ig_media_id=ig_media_id,
+                    container_id=container_id,
+                )
+                return ig_media_id
+            except Exception as e:
+                logger.warning(
+                    "ig_publish_image_attempt_failed",
+                    attempt=attempt,
+                    max_retries=max_retries,
+                    error=str(e),
+                )
+                if attempt == max_retries:
+                    raise e
+                import random
+                sleep_time = random.uniform(5, 10)
+                logger.info("ig_publish_image_retry_waiting", seconds=sleep_time)
+                await asyncio.sleep(sleep_time)
 
     async def publish_carousel(
         self, image_urls: list[str], caption: str
@@ -129,32 +145,48 @@ class InstagramPublisher:
 
         logger.info("ig_publish_carousel_start", slide_count=len(image_urls))
 
-        # Step 1: Create child containers (can be done concurrently) ----------
-        child_tasks = [
-            self._create_container(image_url=url, is_carousel_item=True)
-            for url in image_urls
-        ]
-        child_ids = await asyncio.gather(*child_tasks)
+        max_retries = 10
+        for attempt in range(1, max_retries + 1):
+            try:
+                # Step 1: Create child containers (can be done concurrently) ----------
+                child_tasks = [
+                    self._create_container(image_url=url, is_carousel_item=True)
+                    for url in image_urls
+                ]
+                child_ids = await asyncio.gather(*child_tasks)
 
-        logger.debug("ig_carousel_children_created", children=list(child_ids))
+                logger.debug("ig_carousel_children_created", children=list(child_ids))
 
-        # Step 2: Create parent carousel container ----------------------------
-        parent_id = await self._create_container(
-            media_type="CAROUSEL",
-            caption=caption,
-            children=list(child_ids),
-        )
+                # Step 2: Create parent carousel container ----------------------------
+                parent_id = await self._create_container(
+                    media_type="CAROUSEL",
+                    caption=caption,
+                    children=list(child_ids),
+                )
 
-        # Step 3: Poll + publish parent ---------------------------------------
-        await self._poll_container_status(parent_id)
-        ig_media_id = await self._publish_container(parent_id)
+                # Step 3: Poll + publish parent ---------------------------------------
+                await self._poll_container_status(parent_id)
+                ig_media_id = await self._publish_container(parent_id)
 
-        logger.info(
-            "ig_carousel_published",
-            ig_media_id=ig_media_id,
-            slide_count=len(image_urls),
-        )
-        return ig_media_id
+                logger.info(
+                    "ig_carousel_published",
+                    ig_media_id=ig_media_id,
+                    slide_count=len(image_urls),
+                )
+                return ig_media_id
+            except Exception as e:
+                logger.warning(
+                    "ig_publish_carousel_attempt_failed",
+                    attempt=attempt,
+                    max_retries=max_retries,
+                    error=str(e),
+                )
+                if attempt == max_retries:
+                    raise e
+                import random
+                sleep_time = random.uniform(5, 10)
+                logger.info("ig_publish_carousel_retry_waiting", seconds=sleep_time)
+                await asyncio.sleep(sleep_time)
 
     async def publish_reel(
         self,
@@ -193,18 +225,34 @@ class InstagramPublisher:
         if cover_url:
             params["cover_url"] = cover_url
 
-        container_id = await self._create_container(**params)
+        max_retries = 10
+        for attempt in range(1, max_retries + 1):
+            try:
+                container_id = await self._create_container(**params)
 
-        # Reels take longer to process — use extended timeout
-        await self._poll_container_status(container_id, timeout=300)
-        ig_media_id = await self._publish_container(container_id)
+                # Reels take longer to process — use extended timeout
+                await self._poll_container_status(container_id, timeout=300)
+                ig_media_id = await self._publish_container(container_id)
 
-        logger.info(
-            "ig_reel_published",
-            ig_media_id=ig_media_id,
-            container_id=container_id,
-        )
-        return ig_media_id
+                logger.info(
+                    "ig_reel_published",
+                    ig_media_id=ig_media_id,
+                    container_id=container_id,
+                )
+                return ig_media_id
+            except Exception as e:
+                logger.warning(
+                    "ig_publish_reel_attempt_failed",
+                    attempt=attempt,
+                    max_retries=max_retries,
+                    error=str(e),
+                )
+                if attempt == max_retries:
+                    raise e
+                import random
+                sleep_time = random.uniform(5, 10)
+                logger.info("ig_publish_reel_retry_waiting", seconds=sleep_time)
+                await asyncio.sleep(sleep_time)
 
     # ── insights ─────────────────────────────────────────────────────────
 
