@@ -42,7 +42,6 @@ NATURE_QUERIES = [
 ISLAMIC_QUERIES = [
     "mosque night",
     "minaret night",
-    "crescent moon night",
     "lantern ramadan night",
     "islamic calligraphy",
     "tasbih night",
@@ -120,7 +119,7 @@ class BackgroundVideoManager:
         Maps the AI's theme suggestion to a pre-approved query list
         to prevent inappropriate content from appearing.
         """
-        negative_exclusions = " -woman -girl -person -man -people -human"
+        negative_exclusions = " -woman -girl -person -man -people -human -moon"
 
         if theme:
             theme_lower = theme.lower()
