@@ -43,6 +43,6 @@ A master shell script (`run_pipeline.sh`) is executed by a Linux `cron` timer ev
 ```
 ### 🎬 Example Reel
 
-[Watch the Example Reel](exemple.mp4)
 
-<video src="./exemple.mp4" width="270" controls></video>
+
+<video src="https://github.com/user-attachments/assets/4c5b1740-8307-4b5e-8f84-680f41d5957e" width="370" controls></video>
