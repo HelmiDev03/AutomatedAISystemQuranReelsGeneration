@@ -417,6 +417,7 @@ OUTPUT FORMAT: Respond with valid JSON matching the requested schema.
         topic_name: str,
         media_format: str,
         context: str,
+        exclude_verses: list[str] | None = None,
     ) -> str:
         """Construct the user-facing prompt for the LLM.
 
@@ -485,6 +486,13 @@ OUTPUT FORMAT: Respond with valid JSON matching the requested schema.
             f"FORMAT INSTRUCTIONS:\n{format_guidance.get(media_format, format_guidance['quote_card'])}\n\n"
             f"{type_guidance}\n\n"
         )
+        
+        if exclude_verses:
+            prompt += (
+                f"STRICT EXCLUSION: You MUST NOT select or cite any of the following recently used verses under any circumstances: "
+                f"{', '.join(exclude_verses)}. Pick a completely different verse that is NOT in this list.\n\n"
+            )
+
         if content_type in ("hadith", "dua"):
             prompt += (
                 f"CONTEXT REFERENCE (you can use this if helpful, but you are trusted to provide an authentic hadith/dua from your own knowledge base):\n{context}\n\n"
@@ -592,6 +600,7 @@ OUTPUT FORMAT: Respond with valid JSON matching the requested schema.
         content_type: str,
         topic_name: str,
         media_format: str = "quote_card",
+        exclude_verses: list[str] | None = None,
     ) -> dict[str, Any]:
         """Generate a single Islamic content post.
 
@@ -644,7 +653,7 @@ OUTPUT FORMAT: Respond with valid JSON matching the requested schema.
 
         # 2. Build user prompt
         user_prompt = self._build_user_prompt(
-            content_type, topic_name, media_format, context
+            content_type, topic_name, media_format, context, exclude_verses=exclude_verses
         )
 
         # 3. Select response schema based on media format

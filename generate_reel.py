@@ -36,6 +36,25 @@ def print_info(text: str) -> None:
 def print_fail(text: str) -> None:
     console.print(f"   [bold red][FAIL][/bold red] {text}")
 
+async def get_last_20_reel_verses(session) -> list[str]:
+    from app.models.post import GeneratedPost, MediaFormat
+    from sqlalchemy import select
+
+    stmt = (
+        select(GeneratedPost)
+        .where(GeneratedPost.media_format == MediaFormat.REEL)
+        .order_by(GeneratedPost.created_at.desc())
+        .limit(20)
+    )
+    result = await session.execute(stmt)
+    recent_reels = result.scalars().all()
+
+    verses = []
+    for reel in recent_reels:
+        if reel.source_ref:
+            verses.append(reel.source_ref.strip())
+    return list(set(verses))
+
 async def generate():
     settings = Settings()
     
@@ -66,10 +85,17 @@ async def generate():
         print_info(f"Topic: {topic_name}")
         start = time.time()
         
+        # Get recently used verses to exclude
+        async with async_session() as session:
+            exclude_list = await get_last_20_reel_verses(session)
+        if exclude_list:
+            print_info(f"Recently used verses (to exclude): {exclude_list}")
+
         try:
             generated = await generator.generate(
                 content_type="quran_verse",
                 topic_name=topic_name,
+                exclude_verses=exclude_list,
             )
         except Exception as e:
             print_fail(f"LLM Generation Failed: {e}")
@@ -91,6 +117,40 @@ async def generate():
         verification = await verifier.verify(generated)
         if verification.passed:
             print_ok(f"Verification PASSED -- Confidence: {verification.composite_score}")
+            
+            # Check duplicate verse among last 20 reels
+            source_ref = generated.get("source_ref", "").strip()
+            is_dup = False
+            
+            if source_ref:
+                # Compare against exclude_list
+                import re
+                match = re.search(r"Surah\s*(\d+).*?Ayah\s*(\d+)", source_ref, re.IGNORECASE) or re.search(r"(\d+):(\d+)", source_ref)
+                if match:
+                    s_num = int(match.group(1))
+                    a_num = int(match.group(2))
+                    for ref in exclude_list:
+                        m = re.search(r"Surah\s*(\d+).*?Ayah\s*(\d+)", ref, re.IGNORECASE) or re.search(r"(\d+):(\d+)", ref)
+                        if m:
+                            if int(m.group(1)) == s_num and int(m.group(2)) == a_num:
+                                is_dup = True
+                                break
+                                
+            if is_dup:
+                print_fail(f"Verse {source_ref} matches a verse used in the last 20 reels!")
+                if attempt < MAX_ATTEMPTS:
+                    print_info("Retrying with a new topic...")
+                    async with async_session() as session:
+                        result = await session.execute(text("SELECT name FROM content_topics ORDER BY RANDOM() LIMIT 1"))
+                        row = result.fetchone()
+                        topic_name = row[0] if row else "Patience during hardship"
+                    print_ok(f"New topic: {topic_name}")
+                    generated = None
+                    continue
+                else:
+                    print_fail("CRITICAL: All attempts selected duplicate verses. Aborting pipeline.")
+                    sys.exit(1)
+            
             break
         else:
             print_fail(f"Verification Failed! Issues: {verification.issues}")
