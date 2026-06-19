@@ -197,12 +197,12 @@ async def generate():
     
     from app.services.background_manager import BackgroundVideoManager
     bg_manager = BackgroundVideoManager(settings)
-    bg_video_path = await bg_manager.get_background_video(theme=visual_theme)
-    
-    if bg_video_path:
+    try:
+        bg_video_path = await bg_manager.get_background_video(theme=visual_theme)
         print_ok(f"Fetched background video: {bg_video_path}")
-    else:
-        print_info("Using animated fallback background")
+    except Exception as e:
+        print_fail(f"Failed to fetch background video: {e}")
+        sys.exit(1)
     
     # Parse surah and ayah from source_ref
     surah_num = 1

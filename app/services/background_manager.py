@@ -69,33 +69,50 @@ class BackgroundVideoManager:
 
         Returns
         -------
-        str | None
-            Absolute path to the downloaded MP4 file, or None if all downloads fail.
+        str
+            Absolute path to the downloaded MP4 file.
+
+        Raises
+        ------
+        RuntimeError
+            If all download attempts from Pixabay fail.
         """
         # 1. Try to use an existing cached video if we don't force a new one
         if not force_new and not theme:
-            existing = [f for f in _BACKGROUNDS_DIR.iterdir() if f.suffix in {".mp4", ".webm", ".mkv"}]
+            existing = [
+                f for f in _BACKGROUNDS_DIR.iterdir()
+                if f.suffix in {".mp4", ".webm", ".mkv"} and f.name.startswith("pixabay_")
+            ]
             if existing:
                 chosen = random.choice(existing)
                 logger.info("background_manager.using_cached", path=str(chosen))
                 return str(chosen)
 
-        # 2. Try Pixabay API
-        if self._pixabay_key:
-            try:
-                return await self._download_from_pixabay(theme)
-            except Exception as e:
-                logger.warning("background_manager.pixabay_failed", error=str(e))
+        # 2. Try Pixabay API with retries
+        if not self._pixabay_key:
+            raise RuntimeError("Pixabay API key is missing. Cannot fetch background videos.")
 
-        # 3. Try Pixabay for a random nature fallback
-        if self._pixabay_key:
-            try:
-                return await self._download_from_pixabay(None)
-            except Exception as e:
-                logger.warning("background_manager.pixabay_fallback_failed", error=str(e))
+        max_attempts = 5
+        last_error = None
 
-        logger.error("background_manager.all_sources_failed")
-        return None
+        for attempt in range(1, max_attempts + 1):
+            logger.info("background_manager.pixabay_attempt", attempt=attempt, max_attempts=max_attempts)
+            try:
+                # If theme query keeps failing (e.g. no results or download error),
+                # try fallback random nature query for attempts after the first two.
+                query_theme = theme if attempt <= 2 else None
+                return await self._download_from_pixabay(query_theme)
+            except Exception as e:
+                last_error = e
+                logger.warning("background_manager.pixabay_attempt_failed", attempt=attempt, error=str(e))
+                if attempt < max_attempts:
+                    import asyncio
+                    await asyncio.sleep(2)
+
+        raise RuntimeError(
+            f"Failed to download background video from Pixabay after {max_attempts} attempts. "
+            f"Last error: {last_error}"
+        )
 
     def _build_query(self, theme: str | None) -> str:
         """Build a safe, filtered search query.

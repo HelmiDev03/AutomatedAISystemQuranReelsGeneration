@@ -399,11 +399,12 @@ async def run_full_test():
             visual_theme = generated.get("visual_theme", "nature landscape")
             print_info(f"AI selected visual theme: '{visual_theme}'")
             
-            bg_video_path = await bg_manager.get_background_video(theme=visual_theme)
-            if bg_video_path:
+            try:
+                bg_video_path = await bg_manager.get_background_video(theme=visual_theme)
                 print_ok(f"Fetched background video: {bg_video_path}")
-            else:
-                print_info("Using animated fallback background")
+            except Exception as e:
+                print_fail(f"Failed to fetch background video: {e}")
+                sys.exit(1)
 
             # Extract the Surah and Ayah dynamically from the AI's source reference!
             import re

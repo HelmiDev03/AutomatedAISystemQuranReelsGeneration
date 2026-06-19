@@ -174,7 +174,7 @@ class QuranReelRenderer:
         video_exts = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
         videos = [
             f for f in _BACKGROUNDS_DIR.iterdir()
-            if f.suffix.lower() in video_exts
+            if f.suffix.lower() in video_exts and f.name.startswith("pixabay_")
         ]
         if videos:
             chosen = random.choice(videos)
@@ -269,7 +269,7 @@ class QuranReelRenderer:
         box_bottom = height // 2 + 200
 
         # Arabic text
-        arabic_font = _load_font(_ARABIC_FONT_BOLD, 52)
+        arabic_font = _load_font(_ARABIC_FONT_BOLD, 76)
         text_alpha = int(255 * opacity)
         text_color = (255, 255, 255, text_alpha)
 
@@ -277,14 +277,29 @@ class QuranReelRenderer:
         center_x = width // 2
         y = box_top + 40
 
-        # Estimate chars per line
-        test_bbox = draw.textbbox((0, 0), "م" * 10, font=arabic_font,
-                                   direction="rtl", language="ar")
-        char_width = (test_bbox[2] - test_bbox[0]) / 10
         max_text_width = width - box_margin * 2 - 40
-        chars_per_line = max(int(max_text_width / char_width), 10)
 
-        lines = textwrap.wrap(verse_text, width=chars_per_line)
+        # Wrap text precisely by pixel width
+        words = verse_text.split()
+        lines = []
+        current_line = []
+        for word in words:
+            test_line = " ".join(current_line + [word])
+            bbox = draw.textbbox((0, 0), test_line, font=arabic_font,
+                                  direction="rtl", language="ar")
+            line_width = bbox[2] - bbox[0]
+            if line_width <= max_text_width:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(" ".join(current_line))
+                    current_line = [word]
+                else:
+                    lines.append(word)
+                    current_line = []
+        if current_line:
+            lines.append(" ".join(current_line))
+
         for line in lines:
             bbox = draw.textbbox((0, 0), line, font=arabic_font,
                                   direction="rtl", language="ar")
@@ -293,12 +308,12 @@ class QuranReelRenderer:
             x = center_x - tw // 2
             draw.text((x, y), line, fill=text_color, font=arabic_font,
                       direction="rtl", language="ar")
-            y += th + 14
+            y += th + 20
 
         # Source reference below in Arabic
         if verse_ref:
             # Use Arabic font for the reference (Surah name + Ayah)
-            ref_font = _load_font(_ARABIC_FONT_BOLD, 36)
+            ref_font = _load_font(_ARABIC_FONT_BOLD, 44)
             ref_color = (200, 200, 200, text_alpha)
             ref_bbox = draw.textbbox((0, 0), verse_ref, font=ref_font,
                                       direction="rtl", language="ar")
@@ -364,21 +379,28 @@ class QuranReelRenderer:
         if not background_video:
             background_video = self.get_random_background()
 
+        if not background_video:
+            raise ValueError(
+                "No Pixabay background video available. "
+                "Animated backgrounds or non-Pixabay local fallback backgrounds are strictly disabled."
+            )
+
+        # Enforce that it's a Pixabay video
+        filename = os.path.basename(background_video)
+        if not filename.startswith("pixabay_"):
+            raise ValueError(
+                f"Selected video '{filename}' is not a Pixabay background video. "
+                "Only Pixabay backgrounds are allowed."
+            )
+
         # Step 5: Create video with text overlays
         final_path = str(_OUTPUT_DIR / f"quran_reel_{uid}.mp4")
 
-        if background_video:
-            # Use provided/found background video
-            await self._compose_with_video_bg(
-                background_video, segment_path, fetched_verses,
-                actual_duration, final_path
-            )
-        else:
-            # Create animated background + compose
-            await self._compose_with_generated_bg(
-                segment_path, fetched_verses,
-                actual_duration, final_path
-            )
+        # Use provided/found background video
+        await self._compose_with_video_bg(
+            background_video, segment_path, fetched_verses,
+            actual_duration, final_path
+        )
 
         # Clean up segment
         try:
