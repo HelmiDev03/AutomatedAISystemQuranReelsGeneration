@@ -8,7 +8,7 @@ citation-rich Islamic posts for Instagram.
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 
 import openai
 import structlog
@@ -71,9 +71,22 @@ class IslamicPostOutput(BaseModel):
     content_category: str = Field(
         ..., description="Category such as hadith, quran_verse, dua, etc."
     )
-    visual_theme: str = Field(
-        "nature landscape", 
-        description="A 2-3 word search query for a beautiful nature background video (e.g., 'desert drone', 'ocean waves', 'forest', 'mountains', 'rain'). Must ONLY be nature/landscape. Do not use words like 'holy book', 'mosque', 'prayer' as they yield poor video results.",
+    visual_theme: Literal[
+        "dark nature",
+        "blue nature",
+        "stars night sky",
+        "dark forest night",
+        "dark ocean waves",
+        "dark mountains night",
+        "blue forest mist",
+        "night rain",
+        "deep space nebula",
+        "dark sky clouds",
+        "northern lights aurora",
+        "blue waterfall night",
+    ] = Field(
+        "dark nature",
+        description="Choose the visual theme for the background video from this list of pre-approved nature scenes.",
     )
     confidence: float = Field(
         ...,
@@ -164,9 +177,22 @@ class ReelScriptOutput(BaseModel):
         description="Short on-screen text overlays matching narration",
     )
     content_category: str
-    visual_theme: str = Field(
-        "nature landscape", 
-        description="A 2-3 word search query for a nature background video (e.g., 'desert drone', 'ocean waves', 'forest')",
+    visual_theme: Literal[
+        "dark nature",
+        "blue nature",
+        "stars night sky",
+        "dark forest night",
+        "dark ocean waves",
+        "dark mountains night",
+        "blue forest mist",
+        "night rain",
+        "deep space nebula",
+        "dark sky clouds",
+        "northern lights aurora",
+        "blue waterfall night",
+    ] = Field(
+        "dark nature",
+        description="Choose the visual theme for the background video from this list of pre-approved nature scenes.",
     )
     confidence: float = Field(..., ge=0.0, le=1.0)
 

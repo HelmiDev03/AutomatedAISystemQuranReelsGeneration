@@ -122,22 +122,26 @@ class BackgroundVideoManager:
         negative_exclusions = " -woman -girl -person -man -people -human -moon"
 
         if theme:
-            theme_lower = theme.lower()
-
-            # Check if the theme is Islamic/Deen-related
-            islamic_keywords = ["mosque", "prayer", "quran", "islamic", "minaret",
-                                "ramadan", "eid", "masjid", "deen", "muslim",
-                                "calligraphy", "lantern", "crescent", "tasbih"]
-            is_islamic = any(kw in theme_lower for kw in islamic_keywords)
-
-            if is_islamic:
-                # Use a matching Islamic query or pick a random one
-                matching = [q for q in ISLAMIC_QUERIES if any(w in q for w in theme_lower.split())]
-                base_query = random.choice(matching) if matching else random.choice(ISLAMIC_QUERIES)
+            # If the theme matches exactly, use it directly
+            if theme in NATURE_QUERIES or theme in ISLAMIC_QUERIES:
+                base_query = theme
             else:
-                # For nature themes, map to safe nature queries
-                matching = [q for q in NATURE_QUERIES if any(w in q for w in theme_lower.split())]
-                base_query = random.choice(matching) if matching else random.choice(NATURE_QUERIES)
+                theme_lower = theme.lower()
+
+                # Check if the theme is Islamic/Deen-related
+                islamic_keywords = ["mosque", "prayer", "quran", "islamic", "minaret",
+                                    "ramadan", "eid", "masjid", "deen", "muslim",
+                                    "calligraphy", "lantern", "crescent", "tasbih"]
+                is_islamic = any(kw in theme_lower for kw in islamic_keywords)
+
+                if is_islamic:
+                    # Use a matching Islamic query or pick a random one
+                    matching = [q for q in ISLAMIC_QUERIES if any(w in q for w in theme_lower.split())]
+                    base_query = random.choice(matching) if matching else random.choice(ISLAMIC_QUERIES)
+                else:
+                    # For nature themes, map to safe nature queries
+                    matching = [q for q in NATURE_QUERIES if any(w in q for w in theme_lower.split())]
+                    base_query = random.choice(matching) if matching else random.choice(NATURE_QUERIES)
         else:
             base_query = random.choice(NATURE_QUERIES)
 
