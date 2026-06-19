@@ -45,4 +45,4 @@ A master shell script (`run_pipeline.sh`) is executed by a Linux `cron` timer ev
 
 [Watch the Example Reel](exemple.mp4)
 
-<video src="exemple.mp4" width="270" controls></video>
+<video src="./exemple.mp4" width="270" controls></video>
