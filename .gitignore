@@ -41,3 +41,6 @@ backgrounds/
 # Automation Logs
 logs/
 latest_generation.json
+
+# MoviePy temporary files
+*TEMP_MPY_*
