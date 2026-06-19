@@ -2,6 +2,8 @@
 
 A fully autonomous, offline-first Python bot that generates and publishes highly aesthetic, 100% authentic Quranic Instagram Reels on autopilot.
 
+
+
 ![Architecture Diagram](arch.jpg)
 
 ## 🏗️ Full Architecture Breakdown
@@ -39,3 +41,7 @@ A master shell script (`run_pipeline.sh`) is executed by a Linux `cron` timer ev
 ```bash
 */55 * * * * /bin/bash /path/to/automate/run_pipeline.sh
 ```
+### 🎬 Example Reel
+
+[](https://res.cloudinary.com/dmvxysqvl/video/upload/v1781865831/exemple_x7zshz.mp4)
+
