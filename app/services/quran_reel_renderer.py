@@ -385,13 +385,8 @@ class QuranReelRenderer:
                 "Animated backgrounds or non-Pixabay local fallback backgrounds are strictly disabled."
             )
 
-        # Enforce that it's a Pixabay video
-        filename = os.path.basename(background_video)
-        if not filename.startswith("pixabay_"):
-            raise ValueError(
-                f"Selected video '{filename}' is not a Pixabay background video. "
-                "Only Pixabay backgrounds are allowed."
-            )
+        if not os.path.exists(background_video):
+            raise FileNotFoundError(f"Background video file not found at: {background_video}")
 
         # Step 5: Create video with text overlays
         final_path = str(_OUTPUT_DIR / f"quran_reel_{uid}.mp4")
@@ -423,7 +418,7 @@ class QuranReelRenderer:
         """Compose reel using a real background video."""
         from moviepy import (
             VideoFileClip, AudioFileClip, ImageClip,
-            CompositeVideoClip,
+            CompositeVideoClip, ColorClip,
         )
 
         loop = asyncio.get_running_loop()
@@ -453,14 +448,22 @@ class QuranReelRenderer:
                     width=_REEL_SIZE[0], height=_REEL_SIZE[1],
                 )
 
+            # Create a semi-transparent dark overlay (40% opacity black) to ensure white text
+            # remains perfectly readable on bright/white background videos.
+            overlay = ColorClip(
+                size=_REEL_SIZE,
+                color=(0, 0, 0),
+                duration=duration
+            ).with_opacity(0.4)
+
             # Create verse overlay clips
             verse_clips = self._create_verse_clips(verses, duration)
 
             # Load audio
             audio = AudioFileClip(audio_path)
 
-            # Composite
-            final = CompositeVideoClip([bg] + verse_clips, size=_REEL_SIZE)
+            # Composite: background video -> dark overlay -> text overlays
+            final = CompositeVideoClip([bg, overlay] + verse_clips, size=_REEL_SIZE)
             final = final.with_audio(audio).with_duration(duration)
 
             final.write_videofile(

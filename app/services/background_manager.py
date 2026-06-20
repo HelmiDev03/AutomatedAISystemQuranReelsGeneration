@@ -34,7 +34,6 @@ NATURE_QUERIES = [
     "blue forest mist",
     "night rain",
     "deep space nebula",
-    "dark sky clouds",
     "northern lights aurora",
     "blue waterfall night",
     "wave, night",
@@ -122,7 +121,7 @@ class BackgroundVideoManager:
         Maps the AI's theme suggestion to a pre-approved query list
         to prevent inappropriate content from appearing.
         """
-        negative_exclusions = " -woman -girl -person -man -people -human -moon -dog -cat -pet -animal"
+        negative_exclusions = " -person -people -human -moon -dog -cat -pet "
 
         if theme:
             # If the theme matches exactly, use it directly
@@ -193,43 +192,30 @@ class BackgroundVideoManager:
             if not data.get("hits"):
                 raise ValueError(f"No Pixabay videos found for query: {query}")
 
-            # Filter hits to ensure duration is at least 15 seconds and has HD/4K quality (width >= 1280)
+            # Filter hits to ensure duration is at least 10 seconds
             hits = data.get("hits", [])
-            suitable_hits = []
-            for v in hits:
-                if v.get("duration", 0) < 15:
-                    continue
-                videos = v.get("videos", {})
-                large = videos.get("large", {}) or {}
-                medium = videos.get("medium", {}) or {}
-
-                # Check if either stream has width >= 1280 (HD)
-                if large.get("width", 0) >= 1280 or medium.get("width", 0) >= 1280:
-                    suitable_hits.append(v)
-
+            suitable_hits = [v for v in hits if v.get("duration", 0) >= 10]
             if not suitable_hits:
-                raise ValueError(f"No HD or 4K Pixabay videos found for query: {query}")
+                # Fallback to any hits if none match the duration filter
+                suitable_hits = hits
 
-            # Pick a random video from the suitable HD/4K results
+            # Pick a random video from the suitable results
             video = random.choice(suitable_hits)
             logger.info("background_manager.selected_video", id=video.get("id"), duration=video.get("duration"))
 
-            # Get the best quality video file (prefer large/4K/1080p, then medium)
+            # Get the best quality video file
             videos = video.get("videos", {})
-            large = videos.get("large", {}) or {}
-            medium = videos.get("medium", {}) or {}
 
-            best = None
-            if large.get("width", 0) >= 1280:
-                best = large
-            elif medium.get("width", 0) >= 1280:
-                best = medium
-            else:
-                best = large or medium
+            # Prefer large > medium > small
+            best = (
+                videos.get("large", {})
+                or videos.get("medium", {})
+                or videos.get("small", {})
+            )
 
             download_url = best.get("url", "") if best else ""
             if not download_url:
-                raise ValueError("No downloadable HD/4K video URL found in Pixabay response")
+                raise ValueError("No downloadable video URL found in Pixabay response")
 
             return await self._download_url(download_url, "pixabay")
 
