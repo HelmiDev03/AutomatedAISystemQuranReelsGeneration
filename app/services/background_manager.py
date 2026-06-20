@@ -37,6 +37,9 @@ NATURE_QUERIES = [
     "dark sky clouds",
     "northern lights aurora",
     "blue waterfall night",
+    "wave, night",
+    "ocean, night",
+    "sky, night",
 ]
 
 ISLAMIC_QUERIES = [
@@ -119,7 +122,7 @@ class BackgroundVideoManager:
         Maps the AI's theme suggestion to a pre-approved query list
         to prevent inappropriate content from appearing.
         """
-        negative_exclusions = " -woman -girl -person -man -people -human -moon"
+        negative_exclusions = " -woman -girl -person -man -people -human -moon -dog -cat -pet -animal"
 
         if theme:
             # If the theme matches exactly, use it directly
@@ -151,21 +154,38 @@ class BackgroundVideoManager:
         """Search and download a video from Pixabay with strict filtering."""
         query = self._build_query(theme)
 
-        logger.info("background_manager.pixabay_search", query=query)
+        # Determine the category filter dynamically to avoid non-nature categories (like animals, fashion)
+        category = None
+        if theme:
+            theme_lower = theme.lower()
+            islamic_keywords = ["mosque", "prayer", "quran", "islamic", "minaret",
+                                "ramadan", "eid", "masjid", "deen", "muslim",
+                                "calligraphy", "lantern", "crescent", "tasbih"]
+            is_islamic = any(kw in theme_lower for kw in islamic_keywords)
+            if not is_islamic:
+                category = "nature"
+        else:
+            category = "nature"
+
+        logger.info("background_manager.pixabay_search", query=query, category=category)
 
         async with httpx.AsyncClient(timeout=30) as client:
             page = random.randint(1, 3)
+            params = {
+                "key": self._pixabay_key,
+                "q": query,
+                "video_type": "film",
+                "per_page": 20,
+                "page": page,
+                "safesearch": "true",
+                "order": "popular",
+            }
+            if category:
+                params["category"] = category
+
             response = await client.get(
                 "https://pixabay.com/api/videos/",
-                params={
-                    "key": self._pixabay_key,
-                    "q": query,
-                    "video_type": "film",
-                    "per_page": 20,
-                    "page": page,
-                    "safesearch": "true",
-                    "order": "popular",
-                },
+                params=params,
             )
             response.raise_for_status()
             data = response.json()
@@ -173,30 +193,43 @@ class BackgroundVideoManager:
             if not data.get("hits"):
                 raise ValueError(f"No Pixabay videos found for query: {query}")
 
-            # Filter hits to ensure duration is at least 15 seconds
+            # Filter hits to ensure duration is at least 15 seconds and has HD/4K quality (width >= 1280)
             hits = data.get("hits", [])
-            suitable_hits = [v for v in hits if v.get("duration", 0) >= 15]
-            if not suitable_hits:
-                # Fallback to any hits if none match the duration filter
-                suitable_hits = hits
+            suitable_hits = []
+            for v in hits:
+                if v.get("duration", 0) < 15:
+                    continue
+                videos = v.get("videos", {})
+                large = videos.get("large", {}) or {}
+                medium = videos.get("medium", {}) or {}
 
-            # Pick a random video from the suitable results
+                # Check if either stream has width >= 1280 (HD)
+                if large.get("width", 0) >= 1280 or medium.get("width", 0) >= 1280:
+                    suitable_hits.append(v)
+
+            if not suitable_hits:
+                raise ValueError(f"No HD or 4K Pixabay videos found for query: {query}")
+
+            # Pick a random video from the suitable HD/4K results
             video = random.choice(suitable_hits)
             logger.info("background_manager.selected_video", id=video.get("id"), duration=video.get("duration"))
 
-            # Get the best quality video file
+            # Get the best quality video file (prefer large/4K/1080p, then medium)
             videos = video.get("videos", {})
+            large = videos.get("large", {}) or {}
+            medium = videos.get("medium", {}) or {}
 
-            # Prefer large > medium > small
-            best = (
-                videos.get("large", {})
-                or videos.get("medium", {})
-                or videos.get("small", {})
-            )
+            best = None
+            if large.get("width", 0) >= 1280:
+                best = large
+            elif medium.get("width", 0) >= 1280:
+                best = medium
+            else:
+                best = large or medium
 
-            download_url = best.get("url", "")
+            download_url = best.get("url", "") if best else ""
             if not download_url:
-                raise ValueError("No downloadable video URL found in Pixabay response")
+                raise ValueError("No downloadable HD/4K video URL found in Pixabay response")
 
             return await self._download_url(download_url, "pixabay")
 
