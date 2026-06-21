@@ -6,6 +6,8 @@ from pathlib import Path
 
 import httpx
 
+from app.config import get_settings
+
 # Same audio cache directory used by the reel renderer
 AUDIO_CACHE_DIR = Path("audio_cache")
 AUDIO_CACHE_DIR.mkdir(exist_ok=True)
@@ -30,9 +32,22 @@ async def download_audio():
         response.raise_for_status()
         surahs = response.json()["data"]["surahs"]
         
+        # Load settings and configure the reciter CDN
+        settings = get_settings()
+        reciter = settings.quran_reciter or "ar.alafasy"
+        
+        # Supported EveryAyah reciters (which use the 6-digit format: {surah:03d}{ayah:03d}.mp3)
+        EVERYAYAH_MAPPING = {
+            "ar.dawsari": "https://everyayah.com/data/Yasser_Ad-Dussary_128kbps",
+            "ar.alafasy": "https://everyayah.com/data/Alafasy_128kbps"
+        }
+        
+        use_everyayah = reciter in EVERYAYAH_MAPPING
+        base_cdn_url = EVERYAYAH_MAPPING.get(reciter)
+        
+        logger.info(f"Active Quran reciter: {reciter} (Using EveryAyah CDN: {use_everyayah})")
+        
         tasks = []
-        reciter = "ar.alafasy"
-        base_cdn_url = "https://cdn.islamic.network/quran/audio/128/ar.alafasy"
         
         # 2. Build the download queue
         for surah in surahs:
@@ -45,7 +60,13 @@ async def download_audio():
                 if audio_path.exists():
                     continue
                     
-                download_url = f"{base_cdn_url}/{global_number}.mp3"
+                if use_everyayah:
+                    # EveryAyah uses 6-digit formatting: {surah:03d}{ayah:03d}.mp3 (e.g., 001001.mp3)
+                    download_url = f"{base_cdn_url}/{surah_number:03d}{ayah_number_in_surah:03d}.mp3"
+                else:
+                    # Fallback to Islamic Network CDN using global number
+                    download_url = f"https://cdn.islamic.network/quran/audio/128/{reciter}/{global_number}.mp3"
+                    
                 tasks.append((download_url, audio_path, surah_number, ayah_number_in_surah, global_number))
                 
         if not tasks:

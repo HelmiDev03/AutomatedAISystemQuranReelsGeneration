@@ -90,7 +90,7 @@ class QuranReelRenderer:
         os.environ["FFMPEG_BINARY"] = imageio_ffmpeg.get_ffmpeg_exe()
         from moviepy import AudioFileClip
 
-        reciter = "ar.alafasy"
+        reciter = self._settings.quran_reciter or "ar.alafasy"
         fetched_ayahs = []
         audio_clips = []
         total_duration = 0.0

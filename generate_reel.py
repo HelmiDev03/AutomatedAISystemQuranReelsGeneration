@@ -36,7 +36,7 @@ def print_info(text: str) -> None:
 def print_fail(text: str) -> None:
     console.print(f"   [bold red][FAIL][/bold red] {text}")
 
-async def get_last_20_reel_verses(session) -> list[str]:
+async def get_last_59_reel_verses(session) -> list[str]:
     from app.models.post import GeneratedPost, MediaFormat
     from sqlalchemy import select
 
@@ -44,7 +44,7 @@ async def get_last_20_reel_verses(session) -> list[str]:
         select(GeneratedPost)
         .where(GeneratedPost.media_format == MediaFormat.REEL)
         .order_by(GeneratedPost.created_at.desc())
-        .limit(20)
+        .limit(59)
     )
     result = await session.execute(stmt)
     recent_reels = result.scalars().all()
@@ -54,6 +54,19 @@ async def get_last_20_reel_verses(session) -> list[str]:
         if reel.source_ref:
             verses.append(reel.source_ref.strip())
     return list(set(verses))
+
+async def get_last_59_reel_topics(session) -> list[str]:
+    from app.models.post import GeneratedPost, MediaFormat
+    from sqlalchemy import select
+
+    stmt = (
+        select(GeneratedPost.topic_id)
+        .where(GeneratedPost.media_format == MediaFormat.REEL)
+        .order_by(GeneratedPost.created_at.desc())
+        .limit(59)
+    )
+    result = await session.execute(stmt)
+    return list(set(result.scalars().all()))
 
 async def generate():
     settings = Settings()
@@ -68,14 +81,37 @@ async def generate():
 
     # 2. Topic Selection
     print_header("Selecting Dynamic Topic")
-    from sqlalchemy import text
+    from sqlalchemy import select, func
     from app.database import async_session
+    from app.models.topic import ContentTopic
     
+    topic_id = None
     async with async_session() as session:
-        result = await session.execute(text("SELECT name FROM content_topics ORDER BY RANDOM() LIMIT 1"))
-        row = result.fetchone()
-        topic_name = row[0] if row else "Patience during hardship"
+        # Get recently used topic IDs to exclude
+        exclude_topic_ids = await get_last_59_reel_topics(session)
         
+        # Select topic that is not in the excluded list
+        stmt = select(ContentTopic)
+        if exclude_topic_ids:
+            stmt = stmt.where(ContentTopic.topic_id.not_in(exclude_topic_ids))
+            
+        stmt = stmt.order_by(func.random()).limit(1)
+        result = await session.execute(stmt)
+        topic = result.scalar_one_or_none()
+        
+        # Fallback if no topic found (e.g. if we have <= 59 topics, or table is empty)
+        if not topic:
+            stmt = select(ContentTopic).order_by(ContentTopic.last_used_at.asc(), func.random()).limit(1)
+            result = await session.execute(stmt)
+            topic = result.scalar_one_or_none()
+            
+        if topic:
+            topic_name = topic.name
+            topic_id = topic.topic_id
+        else:
+            topic_name = "Patience during hardship"
+            topic_id = None
+            
     print_ok(f"Selected new daily topic: {topic_name}")
     MAX_ATTEMPTS = 3
     generated = None
@@ -87,7 +123,7 @@ async def generate():
         
         # Get recently used verses to exclude
         async with async_session() as session:
-            exclude_list = await get_last_20_reel_verses(session)
+            exclude_list = await get_last_59_reel_verses(session)
         if exclude_list:
             print_info(f"Recently used verses (to exclude): {exclude_list}")
 
@@ -97,6 +133,29 @@ async def generate():
                 topic_name=topic_name,
                 exclude_verses=exclude_list,
             )
+            
+            # Automatically align with canonical Quran text from database
+            if generated and generated.get("content_category") == "quran_verse":
+                source_ref = generated.get("source_ref", "").strip()
+                import re
+                match = re.search(r"Surah\s*(\d+).*?Ayah\s*(\d+)", source_ref, re.IGNORECASE) or re.search(r"(\d+):(\d+)", source_ref)
+                if match:
+                    s_num = int(match.group(1))
+                    a_num = int(match.group(2))
+                    verse_id = f"quran_{s_num:03d}_{a_num:03d}"
+                    try:
+                        res = await rag._run_sync(
+                            rag._quran_col.get,
+                            ids=[verse_id],
+                            include=["metadatas"]
+                        )
+                        if res.get("metadatas"):
+                            canonical_ar = res["metadatas"][0].get("arabic_text")
+                            if canonical_ar:
+                                generated["arabic_text"] = canonical_ar
+                                print_info(f"Automatically loaded and replaced with canonical Uthmanic text for Surah {s_num} Ayah {a_num}")
+                    except Exception as db_err:
+                        print_info(f"Could not load canonical verse from DB: {db_err}")
         except Exception as e:
             print_fail(f"LLM Generation Failed: {e}")
             if attempt < MAX_ATTEMPTS:
@@ -118,7 +177,7 @@ async def generate():
         if verification.passed:
             print_ok(f"Verification PASSED -- Confidence: {verification.composite_score}")
             
-            # Check duplicate verse among last 20 reels
+            # Check duplicate verse among last 59 reels
             source_ref = generated.get("source_ref", "").strip()
             is_dup = False
             
@@ -137,7 +196,7 @@ async def generate():
                                 break
                                 
             if is_dup:
-                print_fail(f"Verse {source_ref} matches a verse used in the last 20 reels!")
+                print_fail(f"Verse {source_ref} matches a verse used in the last 59 reels!")
                 if attempt < MAX_ATTEMPTS:
                     print_info("Retrying with a new topic...")
                     async with async_session() as session:
@@ -227,6 +286,41 @@ async def generate():
         
     # 6. Save Metadata for Publisher
     print_header("Finalizing")
+    
+    # Save post record to DB to preserve history of topics/verses
+    from app.models.post import GeneratedPost, PostStatus, ContentType, MediaFormat
+    from app.models.topic import ContentTopic
+    from datetime import datetime, timezone
+    
+    async with async_session() as session:
+        # Create a database record for this generated reel
+        post = GeneratedPost(
+            topic_id=topic_id or "default_topic_id",
+            content_type=ContentType.QURAN_VERSE,
+            media_format=MediaFormat.REEL,
+            arabic_text=arabic,
+            english_text=english,
+            caption=caption,
+            hashtags=" ".join(hashtags_ar + hashtags_en),
+            source_ref=source_ref,
+            hadith_grade=None,
+            confidence_score=generated.get("confidence", 1.0),
+            status=PostStatus.READY
+        )
+        session.add(post)
+        
+        # Update topic last used timestamp
+        if topic_id:
+            from sqlalchemy import update
+            await session.execute(
+                update(ContentTopic)
+                .where(ContentTopic.topic_id == topic_id)
+                .values(last_used_at=datetime.now(timezone.utc))
+            )
+            
+        await session.commit()
+        print_ok("Saved post record to database and updated topic usage history")
+        
     output_data = {
         "status": "SUCCESS",
         "reel_path": reel_path,

@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     # ── Edge TTS ─────────────────────────────────────────────────────────
     edge_tts_voice_male: str = "ar-SA-HamedNeural"
     edge_tts_voice_female: str = "ar-SA-ZariyahNeural"
+    quran_reciter: str = "ar.alafasy"
 
     @property
     def sync_database_url(self) -> str:
