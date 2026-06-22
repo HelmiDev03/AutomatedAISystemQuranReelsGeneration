@@ -161,8 +161,8 @@ async def generate():
             if attempt < MAX_ATTEMPTS:
                 print_info("Retrying with a new topic...")
                 async with async_session() as session:
-                    result = await session.execute(text("SELECT name FROM content_topics ORDER BY RANDOM() LIMIT 1"))
-                    row = result.fetchone()
+                    res = await session.execute(select(ContentTopic.name).order_by(func.random()).limit(1))
+                    row = res.fetchone()
                     topic_name = row[0] if row else "Patience during hardship"
                 print_ok(f"New topic: {topic_name}")
                 continue
@@ -200,8 +200,8 @@ async def generate():
                 if attempt < MAX_ATTEMPTS:
                     print_info("Retrying with a new topic...")
                     async with async_session() as session:
-                        result = await session.execute(text("SELECT name FROM content_topics ORDER BY RANDOM() LIMIT 1"))
-                        row = result.fetchone()
+                        res = await session.execute(select(ContentTopic.name).order_by(func.random()).limit(1))
+                        row = res.fetchone()
                         topic_name = row[0] if row else "Patience during hardship"
                     print_ok(f"New topic: {topic_name}")
                     generated = None
@@ -216,8 +216,8 @@ async def generate():
             if attempt < MAX_ATTEMPTS:
                 print_info("LLM hallucinated. Retrying with a new topic...")
                 async with async_session() as session:
-                    result = await session.execute(text("SELECT name FROM content_topics ORDER BY RANDOM() LIMIT 1"))
-                    row = result.fetchone()
+                    res = await session.execute(select(ContentTopic.name).order_by(func.random()).limit(1))
+                    row = res.fetchone()
                     topic_name = row[0] if row else "Patience during hardship"
                 print_ok(f"New topic: {topic_name}")
                 generated = None
