@@ -33,7 +33,7 @@ Before rendering, the `ContentVerifier` strictly checks the AI's output against 
 - **Self-Cleaning**: Immediately deletes the generated `.mp4` and the raw Pixabay video from the local hard drive to ensure the server never runs out of space.
 
 ### 6. Automation Layer (Azure VM)
-A master shell script (`run_pipeline.sh`) is executed by a Linux `cron` timer every 55 minutes. It logs all activity, executes the generator, checks for success, triggers the publisher, and cleans up.
+A master shell script (`run_pipeline.sh`) is executed by a Linux `cron` timer every 2 hours. It logs all activity, executes the generator, checks for success, triggers the publisher, and cleans up.
 
 ---
 
@@ -74,13 +74,13 @@ Before rendering, the `ContentVerifier` strictly checks the AI's output against 
 - **Self-Cleaning**: Immediately deletes the generated `.mp4` and the raw Pixabay video from the local hard drive to ensure the server never runs out of space.
 
 ### 6. Automation Layer (Azure VM)
-A master shell script (`run_pipeline.sh`) is executed by a Linux `cron` timer every 55 minutes. It logs all activity, executes the generator, checks for success, triggers the publisher, and cleans up.
+A master shell script (`run_pipeline.sh`) is executed by a Linux `cron` timer every 2 hours. It logs all activity, executes the generator, checks for success, triggers the publisher, and cleans up.
 
 ---
 
 
 ```bash
-*/55 * * * * /bin/bash /path/to/automate/run_pipeline.sh
+0 */2 * * * /bin/bash /path/to/automate/run_pipeline.sh
 ```
 ### 🎬 Example Reel
 
