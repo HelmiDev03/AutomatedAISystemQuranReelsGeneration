@@ -44,3 +44,8 @@ latest_generation.json
 
 # MoviePy temporary files
 *TEMP_MPY_*
+
+# Databases
+*.db
+automate.db
+
